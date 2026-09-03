@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+jazzgen_env/
+venv/
+
+# Dataset
+data/
+
+# Training output
+outputs/
+
+# Model checkpoint
+*.pt
+*.pth
+*.ckpt
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Mac
+.DS_Store
