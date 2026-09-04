@@ -53,7 +53,7 @@ def train_one_epoch(epoch):
         y = batch["labels"].to(DEVICE)
         optimizer.zero_grad()
         logits = model(x)
-        print( "input max:",x.max().item(),"input min:",x.min.item())
+        print( "input max:",x.max().item(),"input min:",x.min().item())
         # logits:
         # [batch, seq, vocab]
         loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
