@@ -9,9 +9,9 @@ from Transformer import JazzTransformer
 # =========================
 # Config
 # =========================
-
-JSON_DIR = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/token'
-VOCAB_FILE = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/vocabulary/vocabulary.json'
+BASE_DIR = "/content/drive/MyDrive/JazzGen_Data"
+JSON_DIR = BASE_DIR + "/token"
+VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
 CHECKPOINT_DIR = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/check_point'
 SEQ_LENGTH = 512
 BATCH_SIZE = 8
