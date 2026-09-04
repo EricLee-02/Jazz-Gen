@@ -33,6 +33,7 @@ print("Validation samples:",len(val_dataset))
 # Model
 vocab_size = len(train_dataset.token_to_id)
 model = JazzTransformer(vocab_size=vocab_size,max_seq_len=SEQ_LENGTH,d_model=512,n_heads=8,num_layers=8,dropout=0.1)
+print("Model vocab size:", vocab_size)
 model.to(DEVICE)
 # Loss
 criterion = nn.CrossEntropyLoss(ignore_index=train_dataset.pad_id)
@@ -52,7 +53,7 @@ def train_one_epoch(epoch):
         y = batch["labels"].to(DEVICE)
         optimizer.zero_grad()
         logits = model(x)
-        print( "input max:",x.max().item(),"vocab:",model.vocab_size)
+        print( "input max:",x.max().item(),"input min:",x.min.item())
         # logits:
         # [batch, seq, vocab]
         loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
