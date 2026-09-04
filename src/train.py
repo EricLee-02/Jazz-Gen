@@ -19,6 +19,7 @@ EPOCHS = 100
 LR = 3e-4
 WEIGHT_DECAY = 0.01
 DEVICE = torch.device("cuda" if torch.backends.mps.is_available() else "cpu")
+print("Device:", DEVICE)
 os.makedirs(CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
