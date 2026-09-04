@@ -19,7 +19,18 @@ class JazzTransformer(nn.Module):
 
 
     def forward(self,tokens):
+
+        print("Transformer input shape:",x.shape)
+        print("max token:",x.max().item())
+        print("embedding size:",self.token_embedding.num_embeddings)
+
         B,T=tokens.shape
+
+        assert T <= self.max_seq_len, (f"Sequence length {T} > max {self.max_seq_len}")
+        assert tokens.max().item() < self.token_embedding.num_embeddings, (f"Token id {tokens.max().item()} exceeds vocab "f"{self.token_embedding.num_embeddings}")
+
+        assert tokens.min().item() >= 0, (f"Negative token id {tokens.min().item()}")
+
         # token embedding
         x=self.token_embedding(tokens)
         # position

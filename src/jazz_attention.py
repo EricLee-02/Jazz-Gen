@@ -18,13 +18,19 @@ class JazzAttention(nn.Module):
         self.out_proj=nn.Linear(d_model,d_model)
         self.attn_dropout=nn.Dropout(dropout)
 
-        self.register_buffer("causal_mask",torch.triu(torch.ones(2048,2048),diagonal=1).bool())
+        # self.register_buffer("causal_mask",torch.triu(torch.ones(2048,2048),diagonal=1).bool())
 
 
 
     def forward(self,x,jazz_mask=None):
 
         B,T,C=x.shape
+
+        assert C == self.d_model, (f"Attention dim error {C}")
+
+        assert T <= 512, (f"Sequence too long {T}")
+
+
         Q=self.q_proj(x)
         K=self.k_proj(x)
         V=self.v_proj(x)
@@ -34,6 +40,10 @@ class JazzAttention(nn.Module):
         V=V.view(B,T,self.heads,self.head_dim).transpose(1,2)
 
         score=torch.matmul(Q,K.transpose(-2,-1))
+
+        assert score.shape[-1]==T
+        assert score.shape[-2]==T
+
         score/=math.sqrt(self.head_dim)
 
         # causal mask
@@ -43,6 +53,8 @@ class JazzAttention(nn.Module):
 
         # jazz theory mask
         if jazz_mask is not None:
+            print("score:",score.shape,"jazz_mask:",jazz_mask.shape)
+
             score+=jazz_mask
 
         attn=torch.softmax(score,dim=-1)

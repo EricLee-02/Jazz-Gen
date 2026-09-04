@@ -12,9 +12,9 @@ from Transformer import JazzTransformer
 BASE_DIR = "/content/drive/MyDrive/JazzGen_Data"
 JSON_DIR = BASE_DIR + "/token"
 VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
-CHECKPOINT_DIR = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/check_point'
+CHECKPOINT_DIR = "/content/drive/MyDrive/JazzGen_Data/check_point"
 SEQ_LENGTH = 512
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 EPOCHS = 100
 LR = 3e-4
 WEIGHT_DECAY = 0.01
@@ -25,7 +25,7 @@ os.makedirs(CHECKPOINT_DIR,exist_ok=True)
 # Dataset
 train_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
 val_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
-train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True)
+train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True)
 print("Train samples:",len(train_dataset))
 print("Validation samples:",len(val_dataset))
