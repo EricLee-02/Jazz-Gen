@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from build_jazz_dataset import JazzDataset
 from Transformer import JazzTransformer
+from torch.amp import autocast, GradScaler
 
 
 # =========================
@@ -15,7 +16,7 @@ JSON_DIR = BASE_DIR + "/token"
 VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
 CHECKPOINT_DIR = "/content/drive/MyDrive/JazzGen_Data/check_point"
 SEQ_LENGTH = 512
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 EPOCHS = 100
 LR = 3e-4
 WEIGHT_DECAY = 0.01
@@ -26,8 +27,8 @@ os.makedirs(CHECKPOINT_DIR,exist_ok=True)
 # Dataset
 train_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
 val_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
-train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True)
-val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True)
+train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
+val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))
 print("Validation samples:",len(val_dataset))
 
@@ -45,27 +46,48 @@ optimizer = torch.optim.AdamW(model.parameters(),lr=LR,weight_decay=WEIGHT_DECAY
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=EPOCHS)
 # Train Function
 
+scaler = GradScaler("cuda")
+
+
+BEST_MODEL = (CHECKPOINT_DIR +"/best_model.pt")
+start_epoch = 1
+best_loss = float("inf")
+if os.path.exists(BEST_MODEL):
+    print("Loading checkpoint...")
+    checkpoint = torch.load(BEST_MODEL,map_location=DEVICE)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+    scaler.load_state_dict(checkpoint["scaler_state_dict"])
+    start_epoch = (checkpoint["epoch"] + 1)
+    best_loss = checkpoint["loss"]
+    print("Resume epoch:",start_epoch)
 
 def train_one_epoch(epoch):
     model.train()
     total_loss = 0
     for batch_idx, batch in enumerate(train_loader):
-        x = batch["input_ids"].to(DEVICE)
-        y = batch["labels"].to(DEVICE)
+        x = batch["input_ids"].to(DEVICE,non_blocking = True)
+        y = batch["labels"].to(DEVICE, non_blocking = True)
         optimizer.zero_grad()
-        logits = model(x)
+        with autocast("cuda"):
+           logits = model(x)
         # print( "input max:",x.max().item(),"input min:",x.min().item())
         # logits:
         # [batch, seq, vocab]
-        loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
-        loss.backward()
+           loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(),1.0)
-        optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
         total_loss += loss.item()
         if batch_idx % 50 == 0:
+            gpu_memory = (torch.cuda.memory_allocated()/1024**3)
             print(f"Epoch {epoch} "
                   f"Step {batch_idx} "
-                  f"Loss {loss.item():.4f}")
+                  f"Loss {loss.item():.4f}"
+                  f"GPU {gpu_memory:.2f}GB")
     return total_loss / len(train_loader)
 
 # Validation
@@ -75,10 +97,11 @@ def validate():
     model.eval()
     total_loss=0
     for batch in val_loader:
-        x=batch["input_ids"].to(DEVICE)
-        y=batch["labels"].to(DEVICE)
-        logits=model(x)
-        loss=criterion(logits.reshape(-1,vocab_size),y.reshape(-1))
+        x=batch["input_ids"].to(DEVICE,non_blocking = True)
+        y=batch["labels"].to(DEVICE, non_blocking = True)
+        with autocast("cuda"):
+           logits=model(x)
+           loss=criterion(logits.reshape(-1,vocab_size),y.reshape(-1))
         total_loss+=loss.item()
     return total_loss/len(val_loader)
 
@@ -87,8 +110,8 @@ def validate():
 # =========================
 
 def main():
-    best_loss=float("inf")
-    for epoch in range(1,EPOCHS+1):
+    global best_loss
+    for epoch in range(start_epoch,EPOCHS+1):
         train_loss=train_one_epoch(epoch)
         val_loss=validate()
         scheduler.step()
@@ -106,6 +129,8 @@ def main():
             "epoch":epoch,
             "model_state_dict":model.state_dict(),
             "optimizer_state_dict":optimizer.state_dict(), 
+            "scheduler_state_dict":scheduler.state_dict(),
+            "scaler_state_dict":scaler.state_dict(),
             "loss":val_loss},
             f"{CHECKPOINT_DIR}/best_model.pt")
             print("Saved best model")
