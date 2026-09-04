@@ -105,14 +105,24 @@ class JazzTokenizer:
             tokens=self.encode_song(data)
             counter.update(tokens)
         vocab=self.special_tokens.copy()
+
+        valid_tokens = []
+
         for token,count in counter.items():
             if (count>=2 or token.startswith(("TEMPO","SWING","KEY","MODE","SCALE","STYLE"))):
-                vocab.append(token)
+                valid_tokens.append(token)
+        valid_tokens =sorted(valid_tokens)
+        vocab.extend(valid_tokens)
+        vocab = list(dict.fromkeys(vocab))
+        # print("vocab list length", len(vocab))
+        # print("last 10 tokens", vocab[-10:])
         self.token_to_id={token:i for i,token in enumerate(vocab)}
-        self.id_to_token={i:t for t,i in self.token_to_id.items()}
-        print("TEMPO tokens:",sum(1 for t in vocab if t.startswith("TEMPO")))
-        print("SWING tokens:",sum(1 for t in vocab if t.startswith("SWING")))
-        print("Vocabulary size:",len(vocab))
+        self.id_to_token={i:token for token ,i in self.token_to_id.items()}
+        # print("TEMPO tokens:",sum(1 for t in vocab if t.startswith("TEMPO")))
+        # print("SWING tokens:",sum(1 for t in vocab if t.startswith("SWING")))
+        # print("Vocabulary size:",len(self.token_to_id))
+        # print("Max token id", max(self.token_to_id.values()))
+        # print("Min token id", min(self.token_to_id.values()))
 
     # token转id
     def convert_ids(self,tokens):

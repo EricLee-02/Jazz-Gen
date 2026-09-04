@@ -20,10 +20,10 @@ class JazzTransformer(nn.Module):
 
     def forward(self,tokens):
 
-        print("Transformer input shape:",tokens.shape)
-        print("max token:",tokens.max().item(),"min token:",
-        tokens.min().item())
-        print("embedding size:",self.token_embedding.num_embeddings)
+        # print("Transformer input shape:",tokens.shape)
+        # print("max token:",tokens.max().item(),"min token:",
+        # tokens.min().item())
+        # print("embedding size:",self.token_embedding.num_embeddings)
 
         B,T=tokens.shape
 
