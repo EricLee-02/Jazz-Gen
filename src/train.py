@@ -60,38 +60,51 @@ if os.path.exists(BEST_MODEL):
     checkpoint = torch.load(BEST_MODEL,map_location=DEVICE)
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
-    scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
+    if "scheduler_state_dict" in checkpoint:
+        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+    if "scaler_state_dict" in checkpoint:    
+       scaler.load_state_dict(checkpoint["scaler_state_dict"])
+
     start_epoch = (checkpoint["epoch"] + 1)
+
     best_loss = checkpoint["loss"]
     best_epoch = checkpoint["epoch"]
+
     print("Resume epoch:",start_epoch)
 
 def train_one_epoch(epoch):
     model.train()
     total_loss = 0
+
     for batch_idx, batch in enumerate(train_loader):
         x = batch["input_ids"].to(DEVICE,non_blocking = True)
         y = batch["labels"].to(DEVICE, non_blocking = True)
+
         optimizer.zero_grad()
+
         with autocast("cuda"):
            logits = model(x)
         # print( "input max:",x.max().item(),"input min:",x.min().item())
         # logits:
         # [batch, seq, vocab]
            loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
+
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(model.parameters(),1.0)
         scaler.step(optimizer)
         scaler.update()
         total_loss += loss.item()
+
         if batch_idx % 50 == 0:
             gpu_memory = (torch.cuda.memory_allocated()/1024**3)
             print(f"Epoch {epoch} "
                   f"Step {batch_idx} "
                   f"Loss {loss.item():.4f}"
                   f"GPU {gpu_memory:.2f}GB")
+            
     return total_loss / len(train_loader)
 
 # Validation
@@ -141,11 +154,25 @@ def main():
             "scheduler_state_dict":scheduler.state_dict(),
             "scaler_state_dict":scaler.state_dict(),
             "loss":val_loss},
+            BEST_MODEL,
             f"{CHECKPOINT_DIR}/best_model.pt")
             print("Saved best model")
+
+        else:
+            patience_counter += 1
+            print(f"No improvement" f"{patience_counter}/{PATIENCE}")
+            if patience_counter >= PATIENCE:
+                print("Early stopping triggered")
+                break
     # 定期保存
         if epoch % 10 ==0:
             torch.save(model.state_dict(),f"{CHECKPOINT_DIR}/epoch_{epoch}.pt")
+        
+        print("=" * 50)
+        print(f"Best Epoch: {best_epoch}")
+        print(f"Best Val Loss: {best_loss:.4f}")
+
+
     print("Training Finished")
 
 if __name__ == "__main__":
