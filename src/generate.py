@@ -16,7 +16,7 @@ CHECKPOINT = (BASE_DIR +"/check_point/best_model.pt")
 OUTPUT_DIR = (BASE_DIR +"/generated")
 os.makedirs(OUTPUT_DIR,exist_ok=True)
 SEQ_LENGTH = 512
-MAX_GENERATE_LENGTH = 2048
+MAX_GENERATE_LENGTH = 512
 TEMPERATURE = 0.8
 TOP_K = 50
 
@@ -111,6 +111,8 @@ def generate():
 
     tokens = [BOS_ID]
     for step in range(MAX_GENERATE_LENGTH):
+        if len(tokens) >= SEQ_LENGTH :
+            break
         input_ids = torch.tensor(tokens,dtype=torch.long).unsqueeze(0)
         input_ids = input_ids.to(DEVICE)
         logits = model(input_ids)
