@@ -19,6 +19,8 @@ SEQ_LENGTH = 512
 BATCH_SIZE = 8
 EPOCHS = 20
 LR = 3e-4
+# Early stopping
+PATIENCE = 8
 WEIGHT_DECAY = 0.01
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Device:", DEVICE)
@@ -52,6 +54,7 @@ scaler = GradScaler("cuda")
 BEST_MODEL = (CHECKPOINT_DIR +"/best_model.pt")
 start_epoch = 1
 best_loss = float("inf")
+best_epoch = 0
 if os.path.exists(BEST_MODEL):
     print("Loading checkpoint...")
     checkpoint = torch.load(BEST_MODEL,map_location=DEVICE)
@@ -61,6 +64,7 @@ if os.path.exists(BEST_MODEL):
     scaler.load_state_dict(checkpoint["scaler_state_dict"])
     start_epoch = (checkpoint["epoch"] + 1)
     best_loss = checkpoint["loss"]
+    best_epoch = checkpoint["epoch"]
     print("Resume epoch:",start_epoch)
 
 def train_one_epoch(epoch):
@@ -111,6 +115,9 @@ def validate():
 
 def main():
     global best_loss
+    global best_epoch 
+
+    patience_counter = 0
     for epoch in range(start_epoch,EPOCHS+1):
         train_loss=train_one_epoch(epoch)
         val_loss=validate()
@@ -125,6 +132,8 @@ def main():
     # 保存最佳模型
         if val_loss < best_loss:
             best_loss=val_loss
+            best_epoch = epoch
+            patience_counter =0
             torch.save({
             "epoch":epoch,
             "model_state_dict":model.state_dict(),
