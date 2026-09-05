@@ -1,126 +1,241 @@
 import json
-import os
 import mido
-from mido import Message, MidiFile, MidiTrack,MetaMessage
+from mido import MidiFile, MidiTrack, Message, MetaMessage
 
-
-# =========================
-# Config
-# =========================
 
 BASE_DIR = "/content/drive/MyDrive/JazzGen_Data"
-TOKEN_FILE = (BASE_DIR +"/generated/generated_tokens.json")
-OUTPUT_FILE = (BASE_DIR +"/generated/generated_jazz.mid")
+
+TOKEN_FILE = (
+    BASE_DIR +
+    "/generated/generated_tokens.json"
+)
+
+OUTPUT_FILE = (
+    BASE_DIR +
+    "/generated/generated_jazz.mid"
+)
+
+
 TICKS_PER_BEAT = 480
 
-# =========================
-# Token Parser
-# =========================
 
-def parse_token(token):
 
-    """
-    将token解析成事件
+def get_value(token):
 
-    返回:
-    ("type",value)
+    value = token.split("_")[-1]
 
-    """
-    parts = token.split("_")
-    if len(parts) < 2:
-        return None,None
-    name = parts[0].lower()
-    value = parts[-1]
     try:
-        value = int(value)
+        return float(value)
+
     except:
-        pass
+        return value
 
-    return name,value
-    # # Note
-    # if "note" in key:
-    #     return "note", value
-
-    # # pitch
-    # if "pitch" in key:
-    #     return "note", value
-
-    # # velocity
-    # if "velocity" in key:
-    #     return "velocity", value
-
-    # # duration
-    # if "duration" in key:
-    #     return "duration", value
-
-    # # time shift
-    # if "time" in key:
-    #     return "time", value
-    # return None,None
-
-
-
-
-# =========================
-# Decode
-# =========================
 
 
 def tokens_to_midi(tokens):
-    mid = MidiFile(ticks_per_beat=TICKS_PER_BEAT)
+
+
+    mid = MidiFile(
+        ticks_per_beat=TICKS_PER_BEAT
+    )
+
+
     track = MidiTrack()
+
     mid.tracks.append(track)
-    current_velocity = 80
-    current_duration = 480
-    pending_time = 0
-    # current_time = 0
-    # active_notes=[]
+
+
+
+    velocity = 80
+
+    duration = 0.25
+
+    tempo = 120
+
+
+
+    pending_notes = []
 
 
 
     for token in tokens:
-        event,value = parse_token(token)
-        if event is None:
-            continue
 
-        if event=="TEMPO":
 
-            if isinstance(value,int):
-                tempo = int(60000000/value)
-                track.append(MetaMessage("set_tempo",tempo=tempo,time=0))
+        # =====================
+        # Tempo
+        # =====================
 
-        # velocity
-        if event=="velocity":
-            velocity = max(1,min(value,127))
-        # duration
-        elif event=="duration":
-            duration=value
+        if token.startswith("TEMPO"):
 
-        elif event == "time":
-            pending_time += value
+            tempo = get_value(token)
 
-        # note
-        elif event=="note":
-            pitch=value
-            if not isinstance(pitch,int):
-                continue
-            pitch=max(0,min(pitch,127))
-            # note on
-            track.append(Message("note_on",note=pitch,velocity=current_velocity,time=pending_time))
-            # note off
-            pending_time = 0
-            track.append(Message("note_off",note=pitch,velocity=0,time=current_duration))
-        # time shift
+            track.append(
+                MetaMessage(
+                    "set_tempo",
+                    tempo=int(60000000/tempo),
+                    time=0
+                )
+            )
+
+
+
+        # =====================
+        # Velocity
+        # =====================
+
+        elif token.startswith("VELOCITY"):
+
+            velocity=int(
+                get_value(token)
+            )
+
+
+
+        # =====================
+        # Duration
+        # =====================
+
+        elif token.startswith("DURATION"):
+
+            duration=get_value(token)
+
+
+
+        # =====================
+        # Pitch
+        # =====================
+
+        elif token.startswith("PITCH"):
+
+
+            pitch=int(
+                get_value(token)
+            )
+
+
+            pending_notes.append(
+                {
+                    "pitch":pitch,
+                    "velocity":velocity,
+                    "duration":duration
+                }
+            )
+
+
+
+        # =====================
+        # 当遇到下一个BAR
+        # 或新位置时写入
+        # =====================
+
+        elif token=="<BAR>":
+
+
+            for note in pending_notes:
+
+
+                ticks=int(
+                    note["duration"]
+                    *
+                    TICKS_PER_BEAT
+                    *
+                    4
+                )
+
+
+                track.append(
+
+                    Message(
+                        "note_on",
+                        note=note["pitch"],
+                        velocity=note["velocity"],
+                        time=0
+                    )
+
+                )
+
+
+                track.append(
+
+                    Message(
+                        "note_off",
+                        note=note["pitch"],
+                        velocity=0,
+                        time=ticks
+                    )
+
+                )
+
+
+            pending_notes=[]
+
+
+
+    # 写入剩余音符
+
+    for note in pending_notes:
+
+        ticks=int(
+            note["duration"]
+            *
+            TICKS_PER_BEAT
+            *
+            4
+        )
+
+
+        track.append(
+            Message(
+                "note_on",
+                note=note["pitch"],
+                velocity=note["velocity"],
+                time=0
+            )
+        )
+
+
+        track.append(
+            Message(
+                "note_off",
+                note=note["pitch"],
+                velocity=0,
+                time=ticks
+            )
+        )
+
+
     return mid
-# =========================
-# Main
-# =========================
+
+
 
 
 if __name__=="__main__":
-    with open(TOKEN_FILE,"r") as f:
+
+
+    with open(
+        TOKEN_FILE,
+        "r"
+    ) as f:
+
         tokens=json.load(f)
-    print("Tokens:",len(tokens))
+
+
+
+    print(
+        "Tokens:",
+        len(tokens)
+    )
+
+
     midi=tokens_to_midi(tokens)
-    midi.save(OUTPUT_FILE)
-    print("Saved:",OUTPUT_FILE)
+
+
+    midi.save(
+        OUTPUT_FILE
+    )
+
+
+    print(
+        "Saved:",
+        OUTPUT_FILE
+    )
