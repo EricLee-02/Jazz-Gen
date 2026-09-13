@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from harmony_embedding import HarmonyEmbedding
-from harmony_transformer_encode import HarmonyEncoder
-from harmony_prediction import HarmonyPredictionHead
+from .harmony_embedding import HarmonyEmbedding
+from .harmony_transformer_encode import HarmonyEncoder
+from .harmony_prediction import HarmonyPredictionHead
 
 
 
