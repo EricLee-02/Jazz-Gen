@@ -867,6 +867,14 @@ class JazzFeatures:
         else:
             inversion = 3       # other inversion
 
+        function = feature.get("function",0)
+        level = feature.get("level",0)
+        scale = feature.get("scale_id",0)
+        duration = feature.get("duration",0)
+        beat = feature.get( "beat",0)
+        section = feature.get("section", 0)
+        time = feature.get("time", 0)
+
         attribute_id = self.Chord_Attribute_MAP.get(attribute,self.Chord_Attribute_MAP["N.C"])
 
         chord_tone_vector = [0]*12
@@ -897,6 +905,14 @@ class JazzFeatures:
             "bass_interval": bass_interval,
             "inversion":inversion,
             "attribute":attribute_id,
+            "function":function,
+            "level":level,
+            "scale":scale,
+            "duration":duration,
+            "beat":beat,
+            "section":section,
+            "time":time,
+            
             "scale_vector":feature["scale_vector"],
             "chord_tones":chord_tone_vector,
             "guide_tones":guide_vector,

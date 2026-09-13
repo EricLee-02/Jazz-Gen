@@ -143,7 +143,21 @@ class JazzGenerationDataset(Dataset):
             except Exception:
                 continue
 
-            input_ids.append([feature["chord_id"],feature["root"],feature["bass"],feature["bass_interval"],feature["inverison"],feature["attribute"]])
+            input_ids.append([
+                feature["chord_id"],
+                feature["root"],
+                feature["bass"],
+                feature["bass_interval"],
+                feature["inverison"],
+                feature["attribute"],
+                feature["function"],
+                feature["level"],
+                feature["scale"],
+                feature["duration"],
+                feature["beat"],
+                feature["section"],
+                feature["time"],
+                feature["level"],])
             scale_vectors.append(feature["scale_vector"])
             chord_tones.append(feature["chord_tones"])
             guide_tones.append(feature["guide_tones"])
@@ -167,7 +181,7 @@ class JazzGenerationDataset(Dataset):
         length = len(input_ids)
         pad_length=self.max_harmony_len-length
         attention_mask = [1 if i< length else 0 for i in range(self.max_harmony_len)]
-        input_ids += [[0,0,0,0,0,0]]*pad_length
+        input_ids += [[0]*13 for _ in range(pad_length)]
         scale_vectors += [[0]*12]*pad_length
         chord_tones += [[0]*12]*pad_length
         guide_tones += [[0]*12]*pad_length
