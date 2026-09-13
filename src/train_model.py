@@ -119,7 +119,7 @@ criterion=nn.CrossEntropyLoss(ignore_index=-100)
 # ===============================
 # AMP
 # ===============================
-scaler=torch.cuda.amp.GradScaler("cuda")
+scaler=torch.cuda.amp.GradScaler()
 
 # ===============================
 # Train
@@ -135,7 +135,7 @@ def train_epoch(epoch):
         melody_input=batch["melody_input"].to(DEVICE)
         melody_target=batch["melody_target"].to(DEVICE)
         optimizer.zero_grad()
-        with torch.autocast(device_type="cuda",dtype=torch.float16):
+        with torch.autocast(device_type=DEVICE.type,dtype=torch.float16):
             logits=model(harmony, melody_input)
             loss=criterion(logits.reshape(-1,logits.size(-1)),melody_target.reshape(-1))
         scaler.scale(loss).backward()
