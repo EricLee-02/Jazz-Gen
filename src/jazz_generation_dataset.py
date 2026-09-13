@@ -167,7 +167,7 @@ class JazzGenerationDataset(Dataset):
         length = len(input_ids)
         pad_length=self.max_harmony_len-length
         attention_mask = [1 if i< length else 0 for i in range(self.max_harmony_len)]
-        input_ids += [0]*pad_length
+        input_ids += [[0,0,0]]*pad_length
         scale_vectors += [[0]*12]*pad_length
         chord_tones += [[0]*12]*pad_length
         guide_tones += [[0]*12]*pad_length
