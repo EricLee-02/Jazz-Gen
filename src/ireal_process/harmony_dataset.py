@@ -8,7 +8,7 @@ from jazz_features import JazzFeatures
 
 class HarmonyDataset(Dataset):
 
-    def __init__(self,json_file,vocab_dir,seq_length=128):
+    def __init__(self,json_file,vocab_dir,seq_length=128,split="train",train_ratio=0.9,seed = 42):
         self.seq_length = seq_length
 
         # ==========================
@@ -28,8 +28,23 @@ class HarmonyDataset(Dataset):
         # Load songs
         # ==========================
 
+        random.seed(seed)
+        random.shuffle(data)
+        split_idx = int(len(data)*train_ratio)
+
+        if split == "train":
+            data = data[:split_idx]
+
+        elif split == "val":
+            data=data[split:]
+
+        else:
+            raise ValueError("split must be train or val")
+
         with open(json_file,"r",encoding="utf8") as f:
             songs=json.load(f)
+
+        self.songs = data
         print("Total songs:",len(songs))
 
 
