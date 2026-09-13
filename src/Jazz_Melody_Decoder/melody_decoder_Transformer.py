@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from decoder_block import DecoderBlock
+from .decoder_block import DecoderBlock
 
 
 
