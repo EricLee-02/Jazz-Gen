@@ -28,8 +28,7 @@ class HarmonyDataset(Dataset):
         # Load songs
         # ==========================
 
-        random.seed(seed)
-        random.shuffle(data)
+
         split_idx = int(len(data)*train_ratio)
 
         if split == "train":
@@ -43,7 +42,8 @@ class HarmonyDataset(Dataset):
 
         with open(json_file,"r",encoding="utf8") as f:
             songs=json.load(f)
-
+        random.seed(seed)
+        random.shuffle(songs)
         self.songs = data
         print("Total songs:",len(songs))
 

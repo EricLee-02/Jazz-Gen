@@ -62,7 +62,7 @@ encoder.to(DEVICE)
 # ==========================
 # Temporary Head
 # ==========================
-head=HarmonyTrainHead(d_model=512,chord_vocab_size=len(dataset.chord_vocab))
+head=HarmonyTrainHead(d_model=512,chord_vocab_size=len(train_dataset.chord_vocab))
 head.to(DEVICE)
 # ==========================
 # Optimizer
