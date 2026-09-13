@@ -29,22 +29,20 @@ class HarmonyDataset(Dataset):
         # ==========================
 
 
-        split_idx = int(len(data)*train_ratio)
-
-        if split == "train":
-            data = data[:split_idx]
-
-        elif split == "val":
-            data=data[split:]
-
-        else:
-            raise ValueError("split must be train or val")
 
         with open(json_file,"r",encoding="utf8") as f:
             songs=json.load(f)
         random.seed(seed)
         random.shuffle(songs)
         self.songs = data
+        split_idx = int(len(data)*train_ratio)
+        if split == "train":
+            data = data[:split_idx]
+        elif split == "val":
+            data=data[split:]
+
+        else:
+            raise ValueError("split must be train or val")
         print("Total songs:",len(songs))
 
 
