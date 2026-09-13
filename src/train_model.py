@@ -73,7 +73,7 @@ for param in harmony_model.parameters():
     param.requires_grad = False
 harmony_model.eval()
 
-with open(MELODY_VOCAB_DIR,"r") as f :
+with open(MELODY_VOCAB_FILE,"r") as f :
     vocab = json.load(f)
 
 vocab_size = len(vocab["token_to_id"])
