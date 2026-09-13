@@ -70,6 +70,7 @@ head.to(DEVICE)
 optimizer=torch.optim.AdamW(list(encoder.parameters())+list(head.parameters()),lr=1e-4,weight_decay=0.01)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=50)
 criterion=nn.CrossEntropyLoss(ignore_index=-100)
+os.makedirs(HARMONY_CHECKPOINT_DIR,exist_ok=True)
 checkpoint_path=os.path.join(HARMONY_CHECKPOINT_DIR,"harmony_last.pt")
 
 start_epoch=0

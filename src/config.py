@@ -1,6 +1,6 @@
 import os
 
-
+PROJECT_ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ==========================
 # Google Drive Root
 # ==========================
@@ -27,9 +27,9 @@ MELODY_VOCAB_DIR = os.path.join(BASE_DIR,"Melody_Vocabulary")
 # ==========================
 
 CHECKPOINT_DIR = os.path.join(BASE_DIR,"Checkpoint")
-HARMONY_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Harmony")
-MELODY_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Melody")
-GENERATION_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Generation")
+HARMONY_CHECKPOINT_DIR = os.path.join(PROJECT_ROOT,"Checkpoints","Harmony")
+MELODY_CHECKPOINT_DIR = os.path.join(PROJECT_ROOT,"Checkpoints","Melody")
+GENERATION_CHECKPOINT_DIR = os.path.join(PROJECT_ROOT,"Checkpoints","Generation")
 # ==========================
 # Output
 # ==========================
