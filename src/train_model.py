@@ -3,11 +3,11 @@ import json
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from jazz_generation_dataset import JazzGenerationDataset
-from Jazz_Theory_Encoder.harmony_model import HarmonyModel
-from Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
-from melody_generate_model import JazzGenerationModel
-from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE
+from .jazz_generation_dataset import JazzGenerationDataset
+from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
+from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
+from .melody_generate_model import JazzGenerationModel
+from .config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE
 
 
 
@@ -71,7 +71,7 @@ print("Harmony loaded")
 
 for param in harmony_model.parameters():
     param.requires_grad = False
-
+harmony_model.eval()
 
 with open(MELODY_VOCAB_DIR,"r") as f :
     vocab = json.load(f)
