@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from ireal_process.harmony_dataset import HarmonyDataset
-from Jazz_Theory_Encoder.harmony_model import HarmonyModel
+from .harmony_model import HarmonyModel
 
 DEVICE=torch.device( "cuda" if torch.cuda.is_available()else "cpu")
 
