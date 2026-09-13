@@ -1,5 +1,5 @@
 import torch.nn as nn
-from jazz_attention import JazzAttention, CrossAttention
+from .jazz_attention import JazzAttention, CrossAttention
 
 
 

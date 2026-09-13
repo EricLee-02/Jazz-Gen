@@ -3,8 +3,8 @@ os.environ["CUDA_LAUNCH_BLOCKING"]="1"
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from build_jazz_dataset import JazzDataset
-from melody_decoder_Transformer import JazzTransformer
+from .build_jazz_dataset import JazzDataset
+from .melody_decoder_Transformer import JazzTransformer
 from torch.amp import autocast, GradScaler
 from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
 

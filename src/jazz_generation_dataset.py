@@ -4,7 +4,7 @@ import torch
 from pathlib import Path
 from torch.utils.data import Dataset
 
-from jazz_features import JazzFeatures
+from .jazz_features import JazzFeatures
 
 
 
