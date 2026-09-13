@@ -45,7 +45,7 @@ print("Dataset:",len(dataset))
 
 
 harmony_model=HarmonyModel(
-    chord_vocab_size=1063,
+    chord_vocab_size=1064,
     duration_vocab_size=10,
     beat_vocab_size=20,
     section_vocab_size=20,
