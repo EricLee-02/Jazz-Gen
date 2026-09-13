@@ -39,7 +39,7 @@ class HarmonyDataset(Dataset):
         if split == "train":
             songs = songs[:split_idx]
         elif split == "val":
-            songs=songs[split:]
+            songs=songs[split_idx:]
 
         else:
             raise ValueError("split must be train or val")
