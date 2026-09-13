@@ -143,7 +143,7 @@ class JazzGenerationDataset(Dataset):
             except Exception:
                 continue
 
-            input_ids.append(feature["chord_id"],feature["root"],feature["bass"])
+            input_ids.append([feature["chord_id"],feature["root"],feature["bass"]])
             scale_vectors.append(feature["scale_vector"])
             chord_tones.append(feature["chord_tones"])
             guide_tones.append(feature["guide_tones"])
