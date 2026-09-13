@@ -66,3 +66,46 @@ class JazzAttention(nn.Module):
         out=out.view(B,T,C)
         
         return self.out_proj(out)
+    
+
+class CrossAttention(nn.Module):
+
+    def __init__(self,d_model,heads,dropout=0.1):
+        super().__init__()
+        assert d_model % heads == 0
+        self.d_model=d_model
+        self.heads=heads
+        self.head_dim=d_model//heads
+        self.q_proj=nn.Linear(d_model,d_model)
+        self.k_proj=nn.Linear(d_model,d_model)
+        self.v_proj=nn.Linear(d_model,d_model)
+        self.out_proj=nn.Linear(d_model,d_model)
+        self.dropout=nn.Dropout(dropout)
+
+    def forward(self,x,memory,memory_mask=None):
+        """
+        x:
+        melody hidden
+        [B,T,C]
+        memory:
+        harmony encoder output
+        [B,S,C]
+        """
+        B,T,C=x.shape
+        S=memory.shape[1]
+        Q=self.q_proj(x)
+        K=self.k_proj(memory)
+        V=self.v_proj(memory)
+        Q=Q.view(B,T,self.heads,self.head_dim).transpose(1,2)
+        K=K.view(B,S,self.heads,self.head_dim).transpose(1,2)
+        V=V.view(B,S,self.heads,self.head_dim).transpose(1,2)
+        score=torch.matmul(Q,K.transpose(-2,-1))
+        score/=math.sqrt(self.head_dim)
+        if memory_mask is not None:
+            score=score.masked_fill(memory_mask,float("-inf"))
+        attn=torch.softmax(score,dim=-1)
+        attn=self.dropout(attn)
+        out=torch.matmul(attn,V)
+        out=out.transpose(1,2).contiguous()
+        out=out.view(B,T,C)
+        return self.out_proj(out)

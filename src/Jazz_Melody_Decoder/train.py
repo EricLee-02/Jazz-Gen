@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from build_jazz_dataset import JazzDataset
-from Transformer import JazzTransformer
+from melody_decoder_Transformer import JazzTransformer
 from torch.amp import autocast, GradScaler
-
+from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
 
 # =========================
 # Config
@@ -24,11 +24,11 @@ PATIENCE = 8
 WEIGHT_DECAY = 0.01
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Device:", DEVICE)
-os.makedirs(CHECKPOINT_DIR,exist_ok=True)
+os.makedirs(MELODY_CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
-train_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
-val_dataset = JazzDataset(json_dir=JSON_DIR,vocab_file=VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
+train_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_DIR,seq_length=SEQ_LENGTH,stride=256,split="train")
+val_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_DIR,seq_length=SEQ_LENGTH,stride=256,split="val")
 train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))
@@ -51,13 +51,13 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=EPOCHS)
 scaler = GradScaler("cuda")
 
 
-BEST_MODEL = (CHECKPOINT_DIR +"/best_model.pt")
+BEST_MODEL = (MELODY_CHECKPOINT_DIR +"/best_model.pt")
 start_epoch = 1
 best_loss = float("inf")
 best_epoch = 0
-if os.path.exists(BEST_MODEL):
+if os.path.exists(MELODY_CHECKPOINT_DIR):
     print("Loading checkpoint...")
-    checkpoint = torch.load(BEST_MODEL,map_location=DEVICE)
+    checkpoint = torch.load(MELODY_CHECKPOINT_DIR,map_location=DEVICE)
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
@@ -68,7 +68,6 @@ if os.path.exists(BEST_MODEL):
        scaler.load_state_dict(checkpoint["scaler_state_dict"])
 
     start_epoch = (checkpoint["epoch"] + 1)
-
     best_loss = checkpoint["loss"]
     best_epoch = checkpoint["epoch"]
 
@@ -155,7 +154,7 @@ def main():
             "scaler_state_dict":scaler.state_dict(),
             "loss":val_loss},
             BEST_MODEL,
-            f"{CHECKPOINT_DIR}/best_model.pt")
+            f"{MELODY_CHECKPOINT_DIR}/best_model.pt")
             print("Saved best model")
 
         else:
@@ -166,7 +165,7 @@ def main():
                 break
     # 定期保存
         if epoch % 10 ==0:
-            torch.save(model.state_dict(),f"{CHECKPOINT_DIR}/epoch_{epoch}.pt")
+            torch.save(model.state_dict(),f"{MELODY_CHECKPOINT_DIR}/epoch_{epoch}.pt")
         
         print("=" * 50)
         print(f"Best Epoch: {best_epoch}")

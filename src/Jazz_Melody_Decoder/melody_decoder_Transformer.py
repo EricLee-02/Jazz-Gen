@@ -18,7 +18,7 @@ class JazzTransformer(nn.Module):
         self.max_seq_len=max_seq_len
 
 
-    def forward(self,tokens):
+    def forward(self,tokens,memory,mask = None):
 
         # print("Transformer input shape:",tokens.shape)
         # print("max token:",tokens.max().item(),"min token:",
@@ -29,6 +29,7 @@ class JazzTransformer(nn.Module):
 
         assert T <= self.max_seq_len, (f"Sequence length {T} > max {self.max_seq_len}")
         assert tokens.max().item() < self.token_embedding.num_embeddings, (f"Token id {tokens.max().item()} exceeds vocab "f"{self.token_embedding.num_embeddings}")
+        assert memory.shape[-1]==self.token_embedding.embedding_dim
 
         assert tokens.min().item() >= 0, (f"Negative token id {tokens.min().item()}")
         x=self.token_embedding(tokens)
@@ -36,12 +37,12 @@ class JazzTransformer(nn.Module):
         # token embedding
    
         # position
-        positions=torch.arange(T,device=tokens.device)
+        positions=torch.arange(T,device=tokens.device).unsqueeze(0)
         pos=self.position_embedding(positions)
         x=x+pos
         x=self.dropout(x)
         for block in self.blocks:
-            x=block(x)
+            x=block(x,memory,mask)
         x=self.norm(x)
         logits=self.output(x)
         return logits

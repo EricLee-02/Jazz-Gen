@@ -54,6 +54,7 @@ class JazzFeatures:
         "Bb":10,
         "B":11
         }
+    
     ROMAN_MAP={
         0:"I",
         1:"bII",
@@ -68,6 +69,9 @@ class JazzFeatures:
         10:"bVII",
         11:"VII"
                }
+    
+    ROMAN_REVERSE_MAP = {value : key for key, value in ROMAN_MAP.items()}
+
     CADENCE_MAP={
         "none":0,
         "ii-V":1,
