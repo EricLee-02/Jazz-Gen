@@ -9,6 +9,8 @@ class JazzGenerationModel(nn.Module):
         super().__init__()
         # Harmony Theory Encoder
         self.harmony_encoder = harmony_encoder
+        for p in self.harmony_encoder.parameters():
+            p.requires_grad=False
         # Melody Transformer Decoder
         self.melody_decoder = melody_decoder
 

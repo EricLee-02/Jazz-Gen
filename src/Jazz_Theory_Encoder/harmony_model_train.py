@@ -76,7 +76,6 @@ checkpoint_path=os.path.join(HARMONY_CHECKPOINT_DIR,"harmony_last.pt")
 start_epoch=0
 
 if os.path.exists(checkpoint_path):
-
     print("Loading checkpoint...")
     ckpt=torch.load( checkpoint_path,map_location=DEVICE)
     encoder.load_state_dict(ckpt["encoder"])
@@ -187,9 +186,13 @@ for epoch in range(EPOCHS):
             "encoder": encoder.state_dict(),
             "head": head.state_dict(),
             "optimizer":optimizer.state_dict(),
+            "scheduler":scheduler.state_dict(),
             "val_loss": val_loss,
             "loss":avg_loss,
-            "model_state_dict":encoder.state_dict()
+            "chord_vocab_size": len(train_dataset.chord_vocab),
+            "best_val_loss":best_val_loss,
+            "counter":counter
+
             },
             checkpoint_path
         )
@@ -203,6 +206,8 @@ for epoch in range(EPOCHS):
         "epoch":epoch,
         "encoder":encoder.state_dict(),
         "head":head.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict(),
         "val_loss":val_loss
         },
         os.path.join(HARMONY_CHECKPOINT_DIR,  "harmony_best.pt")

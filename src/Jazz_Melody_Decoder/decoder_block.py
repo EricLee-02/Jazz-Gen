@@ -12,10 +12,10 @@ class DecoderBlock(nn.Module):
         self.norm2=nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model) 
         self.ff=nn.Sequential(
-            nn.Linear(d_model,ff_dim),
+            nn.Linear(d_model,ff_dim*4),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(ff_dim,d_model)
+            nn.Linear(ff_dim*4,d_model)
             )
         self.dropout=nn.Dropout(dropout)
 

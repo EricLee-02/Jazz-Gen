@@ -24,7 +24,6 @@ os.makedirs(SAVE_DIR,exist_ok=True)
 DEVICE=torch.device("cuda"if torch.cuda.is_available()else "cpu")
 BATCH_SIZE=8
 EPOCHS=50
-PAD_ID=0
 
 
 
@@ -57,18 +56,32 @@ harmony_model=HarmonyModel(
 )
 
 
-
 checkpoint=torch.load(HARMONY_CHECKPOINT_DIR, map_location=DEVICE)
-harmony_model.load_state_dict(checkpoint["model_state_dict"],strict=False)
+if "encoder" in checkpoint:
+    state = checkpoint["encoder"]
+elif "model_state_dict" in checkpoint:
+    state = checkpoint["model_state_dict"]
+else:
+    raise Exception("Wrong checkpoint")
+
+
+harmony_model.load_state_dict(state,strict=False)
 print("Harmony loaded")
 
 
+for param in harmony_model.parameters():
+    param.requires_grad = False
 
+
+with open(MELODY_VOCAB_DIR,"r") as f :
+    vocab = json.load(f)
+
+vocab_size = len(vocab["token_to_id"])
 # ===============================
 # Melody Decoder
 # ===============================
 melody_decoder=JazzTransformer(
-    vocab_size=4333,
+    vocab_size=vocab_size,
     max_seq_len=512,
     d_model=512,
     n_heads=8,
@@ -82,7 +95,6 @@ melody_decoder=JazzTransformer(
 # Full Model
 # ===============================
 
-
 model=JazzGenerationModel( harmony_model,melody_decoder)
 
 model.to(DEVICE)
@@ -93,20 +105,8 @@ model.to(DEVICE)
 # Optimizer
 # Differential LR
 # ===============================
-optimizer=torch.optim.AdamW(
-    [
-        {
-            "params":model.harmony_encoder.parameters(),
-            "lr":1e-5
-        },
-        {
-            "params":model.melody_decoder.parameters(),
-            "lr":1e-4
-        }
-    ],
-    weight_decay=0.01
-)
 
+optimizer=torch.optim.AdamW(model.melody_decoder.parameters(),lr=1e-4,weight_decay=0.01)
 
 # ===============================
 # Scheduler
@@ -115,11 +115,11 @@ scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=EPOCHS)
 # ===============================
 # Loss
 # ===============================
-criterion=nn.CrossEntropyLoss(ignore_index=PAD_ID)
+criterion=nn.CrossEntropyLoss(ignore_index=-100)
 # ===============================
 # AMP
 # ===============================
-scaler=torch.cuda.amp.GradScaler()
+scaler=torch.cuda.amp.GradScaler("cuda")
 
 # ===============================
 # Train
@@ -135,8 +135,8 @@ def train_epoch(epoch):
         melody_input=batch["melody_input"].to(DEVICE)
         melody_target=batch["melody_target"].to(DEVICE)
         optimizer.zero_grad()
-        with torch.cuda.amp.autocast():
-            logits=model( harmony, melody_input)
+        with torch.autocast(device_type="cuda",dtype=torch.float16):
+            logits=model(harmony, melody_input)
             loss=criterion(logits.reshape(-1,logits.size(-1)),melody_target.reshape(-1))
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -158,6 +158,14 @@ best_loss=float("inf")
 for epoch in range(EPOCHS):
     loss=train_epoch(epoch)
     print("Epoch:",epoch, "Average Loss:", loss)
+    torch.save({
+            "epoch":epoch,
+            "loss":loss,
+            "model_state_dict":model.state_dict(),
+            "optimizer_state_dict":optimizer.state_dict()
+    },
+           os.path.join(SAVE_DIR,"generation_last.pt")
+    )
     if loss < best_loss:
         best_loss=loss
         torch.save(
@@ -167,6 +175,6 @@ for epoch in range(EPOCHS):
                 "model_state_dict":model.state_dict(),
                 "optimizer_state_dict":optimizer.state_dict()
             },
-            SAVE_DIR+"/best_generation.pt"
+            os.path.join(SAVE_DIR,"generation_best.pt")
         )
         print("Saved best model")
