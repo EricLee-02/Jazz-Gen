@@ -808,3 +808,124 @@ class JazzFeatures:
         "scale_id":self.scale_embedding(info.get("scale")),
         "scale_vector": self.scale_to_vector(info.get("scale","None"))
         }
+    
+
+
+        # =====================================================
+    # Unified Chord Analysis Interface
+    # Used by JazzGenerationDataset
+    # =====================================================
+
+    def analyze_chord(self, chord):
+        """
+        Convert chord symbol into harmony encoder features
+
+        Output:
+        {
+            chord_id,
+            root,
+            bass,
+            scale_vector,
+            chord_tones,
+            guide_tones,
+            tensions,
+            available_tensions,
+            avoid
+        }
+        """
+
+        if chord is None or chord == "":
+            chord = "N.C"
+
+
+        # existing embedding function
+        feature = self.chord_embedding(chord)
+
+
+        # -------------------------------
+        # chord id
+        # -------------------------------
+
+        attribute = feature["attribute"]
+
+        chord_id = self.Chord_Attribute_MAP.get(
+            attribute,
+            self.Chord_Attribute_MAP["N.C"]
+        )
+
+
+        # -------------------------------
+        # root / bass
+        # -------------------------------
+
+        root = feature["root_pitch_class"]
+
+        bass = feature["bass_pitch_class"]
+
+
+        # -------------------------------
+        # convert chord tones to vector
+        # -------------------------------
+
+        chord_tone_vector = [0]*12
+
+        for interval in feature["chord_tones"]:
+            chord_tone_vector[interval % 12] = 1
+
+
+        guide_vector = [0]*12
+
+        for interval in feature["guide_tones"]:
+            guide_vector[interval % 12] = 1
+
+
+        tension_vector = [0]*12
+
+        for interval in feature["tensions"]:
+            tension_vector[interval % 12] = 1
+
+
+        available_vector = [0]*12
+
+        for interval in feature["available_tensions"]:
+            available_vector[interval % 12] = 1
+
+
+        avoid_vector = [0]*12
+
+        for interval in feature["avoid"]:
+            avoid_vector[interval % 12] = 1
+
+
+        return {
+
+            "chord_id": chord_id,
+
+            "root": root,
+
+            "bass": bass,
+
+
+            "scale_vector":
+                feature["scale_vector"],
+
+
+            "chord_tones":
+                chord_tone_vector,
+
+
+            "guide_tones":
+                guide_vector,
+
+
+            "tensions":
+                tension_vector,
+
+
+            "available_tensions":
+                available_vector,
+
+
+            "avoid":
+                avoid_vector
+        }
