@@ -7,7 +7,7 @@ from jazz_generation_dataset import JazzGenerationDataset
 from Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from melody_generate_model import JazzGenerationModel
-from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR
+from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE
 
 
 
@@ -32,7 +32,7 @@ EPOCHS=50
 # ===============================
 
 
-dataset=JazzGenerationDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_DIR,seq_length=512)
+dataset=JazzGenerationDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=512)
 loader=DataLoader(dataset,batch_size=BATCH_SIZE,shuffle=True,num_workers=0)
 
 

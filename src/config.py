@@ -20,7 +20,9 @@ HARMONY_VOCAB_DIR = os.path.join(BASE_DIR,"Harmony_Vocabulary")
 # WJazzD / solo token
 MELODY_TOKEN_DIR = os.path.join(BASE_DIR,"Melody_Token")
 # Melody vocabulary
-MELODY_VOCAB_DIR = os.path.join(BASE_DIR,"Melody_Vocabulary","vocabulary.json")
+MELODY_VOCAB_DIR = os.path.join(BASE_DIR,"Melody_Vocabulary")
+MELODY_VOCAB_FILE = os.path.join(BASE_DIR,"Melody_Vocabulary","vocabulary.json")
+
 
 # ==========================
 # Checkpoint
