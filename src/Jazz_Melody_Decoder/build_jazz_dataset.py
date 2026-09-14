@@ -239,6 +239,36 @@ class JazzDataset(Dataset):
     # ==================================================
 
     def process_harmony(self,harmony):
+        MAX_HARMONY_LEN = 128
+        harmony = harmony[: MAX_HARMONY_LEN]
+        while len(harmony) < MAX_HARMONY_LEN:
+            harmony.append({
+            "chord_id":0,
+            "root":0,
+            "bass":0,
+            "bass_interval":0,
+            "inversion":0,
+            "attribute":0,
+            "function_id":0,
+            "level":0,
+            "scale":0,
+            "duration":0,
+            "beat":0,
+            "section":0,
+            "time":0,
+
+            "scale_vector":[0]*12,
+
+            "chord_tones":[0]*12,
+
+            "guide_tones":[0]*12,
+
+            "tensions":[0]*12,
+
+            "available_tensions":[0]*12,
+
+            "avoid":[0]*12
+            })
 
         output={}
     # =====================
