@@ -31,7 +31,6 @@ EPOCHS=50
 # Dataset
 # ===============================
 
-
 dataset=JazzGenerationDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=512)
 loader=DataLoader(dataset,batch_size=BATCH_SIZE,shuffle=True,num_workers=0)
 

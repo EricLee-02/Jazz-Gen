@@ -11,10 +11,10 @@ from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
 # =========================
 # Config
 # =========================
-BASE_DIR = "/content/drive/MyDrive/JazzGen_Data"
-JSON_DIR = BASE_DIR + "/token"
-VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
-CHECKPOINT_DIR = "/content/drive/MyDrive/JazzGen_Data/check_point"
+# BASE_DIR = "/content/drive/MyDrive/JazzGen_Data"
+# JSON_DIR = BASE_DIR + "/token"
+# VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
+# CHECKPOINT_DIR = "/content/drive/MyDrive/JazzGen_Data/check_point"
 SEQ_LENGTH = 512
 BATCH_SIZE = 8
 EPOCHS = 20
@@ -154,7 +154,7 @@ def main():
             "scaler_state_dict":scaler.state_dict(),
             "loss":val_loss},
             BEST_MODEL,
-            f"{MELODY_CHECKPOINT_DIR}/best_model.pt")
+            f"{MELODY_CHECKPOINT_DIR}/ melody_best.pt")
             print("Saved best model")
 
         else:
@@ -165,7 +165,12 @@ def main():
                 break
     # 定期保存
         if epoch % 10 ==0:
-            torch.save(model.state_dict(),f"{MELODY_CHECKPOINT_DIR}/epoch_{epoch}.pt")
+            torch.save(
+                {
+                    "epoch":epoch,
+                    "model_state_dict":model.state_dict(),
+                 },f"{MELODY_CHECKPOINT_DIR}/epoch_{epoch}.pt"
+                )
         
         print("=" * 50)
         print(f"Best Epoch: {best_epoch}")

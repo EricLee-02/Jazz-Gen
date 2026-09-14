@@ -108,7 +108,6 @@ harmony_encoder=HarmonyModel(
 )
 
 
-
 melody_decoder=JazzTransformer(
 
     vocab_size=len(token_to_id),
@@ -123,7 +122,6 @@ melody_decoder=JazzTransformer(
 
     dropout=0.1
 )
-
 
 
 model=JazzGenerationModel(
@@ -158,8 +156,11 @@ harmony_encoder.load_state_dict(
 )
 
 
-harmony_encoder.to(DEVICE)
+harmony_encoder = harmony_encoder.to(DEVICE)
 harmony_encoder.eval()
+
+melody_decoder = melody_decoder.to(DEVICE)
+melody_decoder.eval()
 
 
 print("Harmony Encoder loaded")
