@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 from .build_jazz_dataset import JazzDataset
 from .melody_decoder_Transformer import JazzTransformer
 from torch.amp import autocast, GradScaler
-from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
+from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR
+
 
 # =========================
 # Config
@@ -27,8 +28,8 @@ print("Device:", DEVICE)
 os.makedirs(MELODY_CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
-train_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_DIR,seq_length=SEQ_LENGTH,stride=256,split="train")
-val_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_DIR,seq_length=SEQ_LENGTH,stride=256,split="val")
+train_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
+val_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
 train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))
