@@ -29,8 +29,8 @@ print("Device:", DEVICE)
 os.makedirs(MELODY_CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
-train_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
-val_dataset = JazzDataset(json_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
+train_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
+val_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
 train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))
