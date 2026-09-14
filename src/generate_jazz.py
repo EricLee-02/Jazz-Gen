@@ -12,7 +12,7 @@ from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 
 from .midi_decoder import tokens_to_midi
-
+from config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR
 
 
 # ==================================================
@@ -26,25 +26,9 @@ DEVICE=torch.device(
 )
 
 
-BASE_DIR="/content/drive/MyDrive/JazzGen_Data"
-
-
-CHECKPOINT_PATH = (
-    BASE_DIR+
-    "/check_point/generation/generation_best.pt"
-)
-
-
-VOCAB_FILE = (
-    BASE_DIR+
-    "/Melody_Vocabulary/vocabulary.json"
-)
-
-
-OUTPUT_DIR = (
-    BASE_DIR+
-    "/Output"
-)
+CHECKPOINT_PATH=HARMONY_CHECKPOINT_DIR
+VOCAB_FILE = MELODY_VOCAB_FILE
+OUTPUT_DIR = OUTPUT_DIR
 
 
 os.makedirs(
