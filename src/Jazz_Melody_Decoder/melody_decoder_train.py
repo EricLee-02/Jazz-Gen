@@ -200,8 +200,7 @@ def main():
             "scheduler_state_dict":scheduler.state_dict(),
             "scaler_state_dict":scaler.state_dict(),
             "loss":val_loss},
-            BEST_MODEL,
-            f"{MELODY_CHECKPOINT_DIR}/ melody_best.pt")
+            BEST_MODEL)
             print("Saved best model")
 
         else:
@@ -216,6 +215,8 @@ def main():
                 {
                     "epoch":epoch,
                     "model_state_dict":model.state_dict(),
+                    "optimizer_state_dict":optimizer.state_dict(),
+                    "loss":val_loss
                  },f"{MELODY_CHECKPOINT_DIR}/epoch_{epoch}.pt"
                 )
         
