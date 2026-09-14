@@ -157,7 +157,12 @@ def validate():
         y=batch["labels"].to(DEVICE, non_blocking = True)
         harmony = {k:v.to(DEVICE,non_blocking = True) for k,v in batch["harmony"].items()}
         with autocast("cuda"):
-           memory = harmony_encoder.encode(**harmony)
+           memory = harmony_encoder.encode(
+               input_ids=harmony["input_ids"],
+               scale_vector=harmony["scale_vector"],
+               chord_tones_vector=harmony["chord_tones_vector"],guide_vector=harmony["guide_vector"],
+               tension_vector=harmony["tension_vector"],available_tension_vector=harmony["available_tension_vector"],avoid_vector=harmony["avoid_vector"]
+               )
            logits=model(x,memory)
            loss=criterion(logits.reshape(-1,vocab_size),y.reshape(-1))
         total_loss+=loss.item()

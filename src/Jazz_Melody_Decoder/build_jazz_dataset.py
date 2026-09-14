@@ -221,7 +221,6 @@ class JazzDataset(Dataset):
         "Dominant":2
         }
 
-
         for token in tokens:
             if token.startswith("CHORD_"):
                 chord=token.replace( "CHORD_", "")
@@ -239,135 +238,78 @@ class JazzDataset(Dataset):
     # Harmony Padding
     # ==================================================
 
-    def process_harmony(
-        self,
-        harmony,
-        max_len=128
-    ):
-
-
-        keys=[
-
-            "chord_id",
-
-            "root",
-
-            "bass",
-
-            "bass_interval",
-
-            "inversion",
-
-            "attribute",
-
-            "function_id",
-
-            "level",
-
-            "scale",
-
-            "duration",
-
-            "beat",
-
-            "section",
-
-            "time",
-
-            "scale_vector",
-
-            "chord_tones",
-
-            "guide_tones",
-
-            "tensions",
-
-            "available_tensions",
-
-            "avoid"
-
-        ]
-
+    def process_harmony(self,harmony):
 
         output={}
+    # =====================
+    # categorical harmony
+    # =====================
+        input_ids=[]
 
 
+        for h in harmony:
 
-        for key in keys:
-
-
-            values=[
-                h[key]
-                for h in harmony
-            ]
-
-
-
-            if len(values)<max_len:
-
-
-                pad_len=max_len-len(values)
-
-
-
-                if len(values)>0 and isinstance(
-                    values[0],
-                    list
-                ):
+            input_ids.append([
+            h["chord_id"],
+            h["root"],
+            h["bass"],
+            h["bass_interval"],
+            h["inversion"],
+            h["attribute"],
+            h["function_id"],
+            h["level"],
+            h["scale"],
+            h["duration"],
+            h["beat"],
+            h["section"],
+            h["time"]
+        ])
 
 
-                    values += [
-                        [0]*len(values[0])
-                    ]*pad_len
+        output["input_ids"]=torch.tensor(
+        input_ids,
+        dtype=torch.long
+    )
 
 
-                else:
+    # =====================
+    # theory vectors
+    # =====================
 
-                    values += [
-                        0
-                    ]*pad_len
-
-
-
-            else:
-
-                values=values[:max_len]
+        output["scale_vector"]=torch.tensor(
+        [h["scale_vector"] for h in harmony],
+        dtype=torch.float32
+    )
 
 
-
-            dtype=torch.float if key in [
-
-                "scale_vector",
-                "chord_tones",
-                "guide_tones",
-                "tensions",
-                "available_tensions",
-                "avoid"
-
-            ] else torch.long
+        output["chord_tones_vector"]=torch.tensor(
+        [h["chord_tones"] for h in harmony],
+        dtype=torch.float32
+    )
 
 
-
-            output[key]=torch.tensor(
-                values,
-                dtype=dtype
-            )
-
+        output["guide_vector"]=torch.tensor(
+        [h["guide_tones"] for h in harmony],
+        dtype=torch.float32
+    )
 
 
-        output["attention_mask"]=torch.tensor(
+        output["tension_vector"]=torch.tensor(
+        [h["tensions"] for h in harmony],
+        dtype=torch.float32
+    )
 
-            [
-                1
-                if i<len(harmony)
-                else 0
 
-                for i in range(max_len)
-            ],
+        output["available_tension_vector"]=torch.tensor(
+        [h["available_tensions"] for h in harmony],
+        dtype=torch.float32
+    )
 
-            dtype=torch.bool
 
-        )
+        output["avoid_vector"]=torch.tensor(
+        [h["avoid"] for h in harmony],
+        dtype=torch.float32
+    )
 
 
         return output
