@@ -132,6 +132,8 @@ class HarmonyGenerator:
                 chord
             )
 
+            print(feature)
+
 
 
             input_ids.append(
