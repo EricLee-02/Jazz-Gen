@@ -13,15 +13,12 @@ class HarmonyGenerator:
         self.device=device
         self.features = JazzFeatures()
 
-
-
     # ==========================================
     # Chord Normalize
     # Same as training Dataset
     # ==========================================
 
     def normalize_chord(self,chord):
-
         if chord is None or chord=="":
             return "N.C"
 
@@ -99,22 +96,19 @@ class HarmonyGenerator:
     # ==========================================
 
     def build(self,chords):
-
-
         input_ids=[]
-
-
         scale_vectors=[]
-
         chord_tones=[]
-
         guide_vectors=[]
-
         tensions=[]
-
         available_tensions=[]
-
         avoids=[]
+        Function_Map={
+            "Tonic":0,
+            "SubDominant":1,
+            "Dominant":2
+            }
+
 
 
 
@@ -131,6 +125,7 @@ class HarmonyGenerator:
             feature=self.features.analyze_chord(
                 chord
             )
+            function_id = Function_Map.get(feature["function"],0)
 
             print(feature)
 
@@ -159,10 +154,7 @@ class HarmonyGenerator:
                     feature["attribute"],
 
 
-                    feature.get(
-                        "function",
-                        0
-                    ),
+                    function_id,
 
                     feature.get(
                         "level",

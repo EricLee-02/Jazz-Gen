@@ -912,7 +912,6 @@ class JazzFeatures:
             "beat":beat,
             "section":section,
             "time":time,
-            
             "scale_vector":feature["scale_vector"],
             "chord_tones":chord_tone_vector,
             "guide_tones":guide_vector,
