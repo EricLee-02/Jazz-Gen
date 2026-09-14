@@ -2,81 +2,160 @@ import torch
 import torch.nn as nn
 
 
-
 class JazzGenerationModel(nn.Module):
 
     def __init__(self,harmony_encoder,melody_decoder):
+
         super().__init__()
-        # Harmony Theory Encoder
+
         self.harmony_encoder = harmony_encoder
+
         for p in self.harmony_encoder.parameters():
             p.requires_grad=False
-        # Melody Transformer Decoder
+
         self.melody_decoder = melody_decoder
+
 
 
     def forward(self,harmony,melody_input):
 
-        """
-        harmony:
+        memory = self.harmony_encoder.encode(
+            **harmony
+        )
 
-        {
-            input_ids,
-            scale_vector,
-            chord_tones_vector,
-            guide_vector,
-            tension_vector,
-            available_tension_vector,
-            avoid_vector,
-            attention_mask
-        }
+        logits = self.melody_decoder(
+            melody_input,
+            memory
+        )
+
+        return logits
 
 
-        melody_input:
 
-        [B,T]
+    @torch.no_grad()
+    def encode_harmony(self,harmony):
 
-        """
+        self.eval()
+
+        memory = self.harmony_encoder.encode(
+            **harmony
+        )
+
+        return memory
+
+
+
+    @torch.no_grad()
+    def generate(
+        self,
+        harmony,
+        bos_id,
+        eos_id=None,
+        max_length=512,
+        temperature=0.8,
+        top_k=20
+    ):
+
+
+        self.eval()
 
 
         # ==========================
         # Harmony Encoding
         # ==========================
 
-        memory = self.harmony_encoder.encode( **harmony)
-
-
-        """
-        memory:
-
-        [B,H,512]
-
-        """
-
+        memory=self.harmony_encoder.encode(
+            **harmony
+        )
 
 
         # ==========================
-        # Melody Generation
+        # start token
         # ==========================
-        logits = self.melody_decoder(melody_input,memory)
+
+        generated=torch.tensor(
+            [[bos_id]],
+            device=memory.device
+        )
 
 
-        """
-        logits:
+        # ==========================
+        # autoregressive generation
+        # ==========================
 
-        [B,T,vocab_size]
-
-        """
+        for step in range(max_length-1):
 
 
-        return logits
+            logits=self.melody_decoder(
+                generated,
+                memory
+            )
 
-    @torch.no_grad()
-    def encode_harmony(self,harmony):
 
-        """
-        inference时单独获取Harmony memory
-        """
-        memory=self.harmony_encoder.encode( **harmony)
+            next_logits=logits[:,-1,:]
 
-        return memory
+
+            # temperature
+
+            next_logits = next_logits / temperature
+
+
+
+            # top-k sampling
+
+            if top_k:
+
+                values,indices=torch.topk(
+                    next_logits,
+                    top_k
+                )
+
+
+                probs=torch.softmax(
+                    values,
+                    dim=-1
+                )
+
+
+                sample=torch.multinomial(
+                    probs,
+                    1
+                )
+
+
+                next_token=indices.gather(
+                    1,
+                    sample
+                )
+
+
+            else:
+
+                probs=torch.softmax(
+                    next_logits,
+                    dim=-1
+                )
+
+                next_token=torch.multinomial(
+                    probs,
+                    1
+                )
+
+
+            generated=torch.cat(
+                [
+                    generated,
+                    next_token
+                ],
+                dim=1
+            )
+
+
+            if eos_id is not None:
+
+                if next_token.item()==eos_id:
+                    break
+
+
+
+        return generated

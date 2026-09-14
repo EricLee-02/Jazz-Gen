@@ -1,6 +1,6 @@
 import torch
 
-from jazz_features import JazzFeatures
+from .jazz_features import JazzFeatures
 
 
 
