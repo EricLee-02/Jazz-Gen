@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from .build_jazz_dataset import JazzDataset
 from .melody_decoder_Transformer import JazzTransformer
 from torch.amp import autocast, GradScaler
-from config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
+from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,MELODY_CHECKPOINT_DIR
 
 # =========================
 # Config
