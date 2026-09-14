@@ -212,37 +212,22 @@ class JazzDataset(Dataset):
     # Extract Harmony
     # ==================================================
 
-    def extract_harmony(
-        self,
-        tokens
-    ):
-
-
+    def extract_harmony(self,tokens):
         harmony=[]
+
+        function_map={
+        "Tonic":0,
+        "SubDominant":1,
+        "Dominant":2
+        }
 
 
         for token in tokens:
-
-
-            if token.startswith(
-                "CHORD_"
-            ):
-
-
-                chord=token.replace(
-                    "CHORD_",
-                    ""
-                )
-
-
-                feature=self.feature.analyze_chord(
-                    chord
-                )
-
-
-                harmony.append(
-                    feature
-                )
+            if token.startswith("CHORD_"):
+                chord=token.replace( "CHORD_", "")
+                feature=self.feature.analyze_chord( chord)
+                feature["function_id"] = function_map.get(feature["function"],0)
+                harmony.append(feature)
 
 
 
