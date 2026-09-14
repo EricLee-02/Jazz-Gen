@@ -52,27 +52,27 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer,T_max=EPOCHS)
 scaler = GradScaler("cuda")
 
 
-BEST_MODEL = (MELODY_CHECKPOINT_DIR +"/best_model.pt")
+BEST_MODEL = (MELODY_CHECKPOINT_DIR +"/melody_best.pt")
 start_epoch = 1
 best_loss = float("inf")
 best_epoch = 0
-if os.path.exists(MELODY_CHECKPOINT_DIR):
-    print("Loading checkpoint...")
-    checkpoint = torch.load(MELODY_CHECKPOINT_DIR,map_location=DEVICE)
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# if os.path.exists(MELODY_CHECKPOINT_DIR):
+#     print("Loading checkpoint...")
+#     checkpoint = torch.load(BEST_MODEL,map_location=DEVICE)
+#     model.load_state_dict(checkpoint["model_state_dict"])
+#     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-    if "scheduler_state_dict" in checkpoint:
-        scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+#     if "scheduler_state_dict" in checkpoint:
+#         scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
 
-    if "scaler_state_dict" in checkpoint:    
-       scaler.load_state_dict(checkpoint["scaler_state_dict"])
+#     if "scaler_state_dict" in checkpoint:    
+#        scaler.load_state_dict(checkpoint["scaler_state_dict"])
 
-    start_epoch = (checkpoint["epoch"] + 1)
-    best_loss = checkpoint["loss"]
-    best_epoch = checkpoint["epoch"]
+#     start_epoch = (checkpoint["epoch"] + 1)
+#     best_loss = checkpoint["loss"]
+#     best_epoch = checkpoint["epoch"]
 
-    print("Resume epoch:",start_epoch)
+#     print("Resume epoch:",start_epoch)
 
 def train_one_epoch(epoch):
     model.train()
