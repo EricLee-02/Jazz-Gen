@@ -5,8 +5,9 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from .build_jazz_dataset import JazzDataset
 from .melody_decoder_Transformer import JazzTransformer
+from src.Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from torch.amp import autocast, GradScaler
-from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR
+from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR
 
 
 # =========================
@@ -37,7 +38,41 @@ print("Validation samples:",len(val_dataset))
 
 # Model
 vocab_size = len(train_dataset.token_to_id)
-model = JazzTransformer(vocab_size=vocab_size,max_seq_len=SEQ_LENGTH,d_model=512,n_heads=8,num_layers=8,dropout=0.1)
+
+harmony_encoder = HarmonyModel(
+    chord_vocab_size=1063,
+    duration_vocab_size=10,
+    beat_vocab_size=20,
+    section_vocab_size=20,
+    time_vocab_size=10,
+    d_model=512,
+    n_heads=8,
+    num_layers=6
+)
+
+checkpoint=torch.load(HARMONY_CHECKPOINT_DIR,map_location=DEVICE)
+if "encoder" in checkpoint:
+    state=checkpoint["encoder"]
+
+else:
+    state=checkpoint["model_state_dict"]
+
+harmony_encoder.load_state_dict(state,strict=False)
+harmony_encoder.to(DEVICE)
+harmony_encoder.eval()
+for p in harmony_encoder.parameters():
+    p.requires_grad=False
+print("Harmony Encoder loaded")
+
+
+
+model = JazzTransformer(
+    vocab_size=vocab_size,
+    max_seq_len=SEQ_LENGTH,
+    d_model=512,
+    n_heads=8,
+    num_layers=8,
+    dropout=0.1)
 print("Model vocab size:", vocab_size)
 model.to(DEVICE)
 # Loss
@@ -81,11 +116,15 @@ def train_one_epoch(epoch):
     for batch_idx, batch in enumerate(train_loader):
         x = batch["input_ids"].to(DEVICE,non_blocking = True)
         y = batch["labels"].to(DEVICE, non_blocking = True)
+        harmony = {k:v.to(DEVICE,non_blocking = True) for k,v in batch["harmony"].items()}
 
         optimizer.zero_grad()
 
+        with torch.no_grad():
+            memory = harmony_encoder.encode(**harmony)
+
         with autocast("cuda"):
-           logits = model(x)
+           logits = model(x,memory)
         # print( "input max:",x.max().item(),"input min:",x.min().item())
         # logits:
         # [batch, seq, vocab]
@@ -116,8 +155,10 @@ def validate():
     for batch in val_loader:
         x=batch["input_ids"].to(DEVICE,non_blocking = True)
         y=batch["labels"].to(DEVICE, non_blocking = True)
+        harmony = {k:v.to(DEVICE,non_blocking = True) for k,v in batch["harmony"].items()}
         with autocast("cuda"):
-           logits=model(x)
+           memory = harmony_encoder.encode(**harmony)
+           logits=model(x,memory)
            loss=criterion(logits.reshape(-1,vocab_size),y.reshape(-1))
         total_loss+=loss.item()
     return total_loss/len(val_loader)

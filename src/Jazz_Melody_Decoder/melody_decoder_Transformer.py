@@ -26,7 +26,6 @@ class JazzTransformer(nn.Module):
         # print("embedding size:",self.token_embedding.num_embeddings)
 
         B,T=tokens.shape
-
         assert T <= self.max_seq_len, (f"Sequence length {T} > max {self.max_seq_len}")
         assert tokens.max().item() < self.token_embedding.num_embeddings, (f"Token id {tokens.max().item()} exceeds vocab "f"{self.token_embedding.num_embeddings}")
         assert memory.shape[-1]==self.token_embedding.embedding_dim
