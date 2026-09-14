@@ -40,7 +40,7 @@ print("Validation samples:",len(val_dataset))
 vocab_size = len(train_dataset.token_to_id)
 
 harmony_encoder = HarmonyModel(
-    chord_vocab_size=1063,
+    chord_vocab_size=1064,
     duration_vocab_size=10,
     beat_vocab_size=20,
     section_vocab_size=20,
