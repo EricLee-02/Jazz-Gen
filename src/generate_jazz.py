@@ -144,19 +144,31 @@ checkpoint=torch.load(
     map_location=DEVICE
 )
 
+if "model_state_dict" in checkpoint:
 
-model.load_state_dict(
-    checkpoint["model_state_dict"]
+    state=checkpoint["model_state_dict"]
+
+elif "encoder" in checkpoint:
+
+    state=checkpoint["encoder"]
+
+
+else:
+
+    state=checkpoint
+
+
+harmony_encoder.load_state_dict(
+    state,
+    strict=False
 )
 
 
-model.to(DEVICE)
+harmony_encoder.to(DEVICE)
+harmony_encoder.eval()
 
-model.eval()
 
-
-print("Model loaded")
-
+print("Harmony Encoder loaded")
 
 
 # ==================================================
