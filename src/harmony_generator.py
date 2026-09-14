@@ -11,6 +11,7 @@ class HarmonyGenerator:
 
         self.max_harmony_len=max_harmony_len
         self.device=device
+        self.features = JazzFeatures()
 
 
 
@@ -127,7 +128,7 @@ class HarmonyGenerator:
             )
 
 
-            feature=JazzFeatures.analyze_chord(
+            feature=self.features.analyze_chord(
                 chord
             )
 
