@@ -275,7 +275,7 @@ class JazzDataset(Dataset):
 
             "attribute",
 
-            "function",
+            "function_id",
 
             "level",
 
