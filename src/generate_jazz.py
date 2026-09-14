@@ -6,7 +6,7 @@ from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 from .midi_decoder import tokens_to_midi
-from config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR
+from .config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR
 
 
 # ==================================================

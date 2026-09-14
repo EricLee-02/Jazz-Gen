@@ -2,11 +2,11 @@ import torch
 import json
 
 
-from melody_generate_model import JazzGenerationModel
-from Jazz_Theory_Encoder.harmony_model import HarmonyModel
-from Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
+from .melody_generate_model import JazzGenerationModel
+from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
+from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 
-from midi_decoder import token_to_midi
+from .midi_decoder import token_to_midi
 
 
 
