@@ -6,7 +6,7 @@ from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 from .midi_decoder import tokens_to_midi
-from .config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR
+from .config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR,MELODY_CHECKPOINT_DIR,GENERATION_CHECKPOINT_DIR
 
 
 # ==================================================
@@ -20,9 +20,7 @@ DEVICE=torch.device(
 )
 
 
-CHECKPOINT_PATH=HARMONY_CHECKPOINT_DIR
-VOCAB_FILE = MELODY_VOCAB_FILE
-OUTPUT_DIR = OUTPUT_DIR
+
 
 
 os.makedirs(
@@ -50,7 +48,7 @@ MIDI_OUTPUT=os.path.join(
 # ==================================================
 
 with open(
-    VOCAB_FILE,
+    MELODY_VOCAB_FILE,
     "r",
     encoding="utf8"
 ) as f:
@@ -132,7 +130,7 @@ model=JazzGenerationModel(
 
 
 checkpoint=torch.load(
-    CHECKPOINT_PATH,
+    HARMONY_CHECKPOINT_DIR,
     map_location=DEVICE
 )
 
@@ -150,7 +148,55 @@ else:
     state=checkpoint
 
 
-harmony_encoder.load_state_dict(
+melody_decoder.load_state_dict(
+    state,
+    strict=False
+)
+
+checkpoint=torch.load(
+    MELODY_CHECKPOINT_DIR,
+    map_location=DEVICE
+)
+
+if "model_state_dict" in checkpoint:
+
+    state=checkpoint["model_state_dict"]
+
+elif "encoder" in checkpoint:
+
+    state=checkpoint["encoder"]
+
+
+else:
+
+    state=checkpoint
+
+
+melody_decoder.load_state_dict(
+    state,
+    strict=False
+)
+
+checkpoint=torch.load(
+    GENERATION_CHECKPOINT_DIR,
+    map_location=DEVICE
+)
+
+if "model_state_dict" in checkpoint:
+
+    state=checkpoint["model_state_dict"]
+
+elif "encoder" in checkpoint:
+
+    state=checkpoint["encoder"]
+
+
+else:
+
+    state=checkpoint
+
+
+model.load_state_dict(
     state,
     strict=False
 )
@@ -161,6 +207,9 @@ harmony_encoder.eval()
 
 melody_decoder = melody_decoder.to(DEVICE)
 melody_decoder.eval()
+
+model = model.to(DEVICE)
+model.eval()
 
 
 print("Harmony Encoder loaded")
