@@ -165,7 +165,7 @@ for epoch in range(EPOCHS):
             "model_state_dict":model.state_dict(),
             "optimizer_state_dict":optimizer.state_dict()
     },
-           os.path.join(SAVE_DIR,"generation_last.pt")
+           os.path.join(GENERATION_CHECKPOINT_DIR,"generation_last.pt")
     )
     if loss < best_loss:
         best_loss=loss
