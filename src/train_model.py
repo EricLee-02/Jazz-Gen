@@ -176,6 +176,6 @@ for epoch in range(EPOCHS):
                 "model_state_dict":model.state_dict(),
                 "optimizer_state_dict":optimizer.state_dict()
             },
-            os.path.join(SAVE_DIR,"generation_best.pt")
+            os.path.join(GENERATION_CHECKPOINT_DIR,"generation_best.pt")
         )
         print("Saved best model")
