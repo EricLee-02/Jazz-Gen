@@ -29,7 +29,7 @@ MELODY_VOCAB_FILE = os.path.join(BASE_DIR,"Melody_Vocabulary","vocabulary.json")
 
 CHECKPOINT_DIR = os.path.join(BASE_DIR,"Checkpoints")
 HARMONY_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Harmony","harmony_best.pt")
-MELODY_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Melody")
+MELODY_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Melody","melody_best.pt")
 GENERATION_CHECKPOINT_DIR = os.path.join(CHECKPOINT_DIR,"Generation")
 # ==========================
 # Output

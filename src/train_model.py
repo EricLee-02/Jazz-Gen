@@ -7,7 +7,7 @@ from .jazz_generation_dataset import JazzGenerationDataset
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .melody_generate_model import JazzGenerationModel
-from .config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE
+from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,GENERATION_CHECKPOINT_DIR
 
 
 
@@ -15,12 +15,8 @@ from .config import MELODY_TOKEN_DIR,MELODY_VOCAB_DIR,HARMONY_CHECKPOINT_DIR,MEL
 # Config
 # ===============================
 
-BASE_DIR="/Volumes/My Passport/Jazz Gen"
-TOKEN_DIR = (BASE_DIR+ "/data/processed/jazz_json_v2_token/token")
-VOCAB_FILE = (BASE_DIR+"/data/processed/jazz_json_v2_token/vocabulary/vocabulary.json")
-HARMONY_CHECKPOINT = (BASE_DIR+ "/check_point/best_harmony.pt")
-SAVE_DIR = (BASE_DIR+"/check_point/generation")
-os.makedirs(SAVE_DIR,exist_ok=True)
+
+os.makedirs(GENERATION_CHECKPOINT_DIR,exist_ok=True)
 DEVICE=torch.device("cuda"if torch.cuda.is_available()else "cpu")
 BATCH_SIZE=8
 EPOCHS=50
@@ -87,6 +83,15 @@ melody_decoder=JazzTransformer(
     num_layers=8,
     dropout=0.1
 )
+melody_checkpoint=torch.load(MELODY_CHECKPOINT_DIR,map_location=DEVICE)
+if "encoder" in checkpoint:
+    state = checkpoint["encoder"]
+elif "model_state_dict" in checkpoint:
+    state = checkpoint["model_state_dict"]
+else:
+    raise Exception("Wrong checkpoint")
+melody_decoder.load_state_dict(state,strict=False)
+print("Melody loaded", melody_checkpoint["epoch"], melody_checkpoint["loss"])
 
 
 
@@ -95,17 +100,14 @@ melody_decoder=JazzTransformer(
 # ===============================
 
 model=JazzGenerationModel( harmony_model,melody_decoder)
-
 model.to(DEVICE)
-
-
 
 # ===============================
 # Optimizer
 # Differential LR
 # ===============================
 
-optimizer=torch.optim.AdamW(model.melody_decoder.parameters(),lr=1e-4,weight_decay=0.01)
+optimizer=torch.optim.AdamW(model.melody_decoder.parameters(),lr=1e-5,weight_decay=0.01)
 
 # ===============================
 # Scheduler
