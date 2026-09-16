@@ -87,37 +87,23 @@ print("Loading model...")
 
 
 harmony_encoder=HarmonyModel(
-
     chord_vocab_size=1064,
-
     duration_vocab_size=10,
-
     beat_vocab_size=20,
-
     section_vocab_size=20,
-
     time_vocab_size=10,
-
     d_model=512,
-
     n_heads=8,
-
     num_layers=6
 )
 
 
 melody_decoder=JazzTransformer(
-
     vocab_size=len(token_to_id),
-
     max_seq_len=512,
-
     d_model=512,
-
     n_heads=8,
-
     num_layers=8,
-
     dropout=0.1
 )
 
@@ -129,22 +115,13 @@ model=JazzGenerationModel(
 
 
 
-checkpoint=torch.load(
-    HARMONY_CHECKPOINT_DIR,
-    map_location=DEVICE
-)
+checkpoint=torch.load( HARMONY_CHECKPOINT_DIRmap_location=DEVICE)
 
 if "model_state_dict" in checkpoint:
-
     state=checkpoint["model_state_dict"]
-
 elif "encoder" in checkpoint:
-
     state=checkpoint["encoder"]
-
-
 else:
-
     state=checkpoint
 
 
@@ -222,15 +199,12 @@ print("Harmony Encoder loaded")
 # 用户输入和弦
 
 chords=[
-
-    "Cm7",
-
-    "F7",
-
-    "Bbmaj7",
-
-    "Ebmaj7"
-
+  "CMaj7","CMin7 F7","BbMaj7","BMin7 Eb7",
+  "AbMaj7","DMin7 G7#9","CMaj7","CMaj7",
+  "DMin7","G7","CMaj7/E","A7",
+  "DMin7","G7","CMaj7","DMin7 G7",
+  "CMaj7","CMin7 F7","BbMaj7","BMin7 Eb7",
+  "AbMaj7","DMin7 G7#9","CMaj7","CMaj7",
 ]
 
 
@@ -238,14 +212,9 @@ chords=[
 harmony_builder=HarmonyGenerator()
 
 
-harmony=harmony_builder.build(
-    chords
-)
-
-
+harmony=harmony_builder.build(chords)
 
 for k in harmony:
-
     harmony[k]=harmony[k].to(DEVICE)
 
 
@@ -259,30 +228,14 @@ print("Harmony prepared")
 # ==================================================
 
 @torch.no_grad()
-def generate(
-    model,
-    harmony,
-    max_length=512,
-    temperature=0.8,
-    top_k=20
-):
+def generate(model,harmony, max_length=512,temperature=0.8,
+top_k=20):
 
 
-    memory=model.harmony_encoder.encode(
-        **harmony
-    )
-
-
-
-    generated=torch.tensor(
-        [[BOS_ID]],
-        device=DEVICE
-    )
-
-
+    memory=model.harmony_encoder.encode(**harmony)
+    generated=torch.tensor([[BOS_ID]],device=DEVICE)
 
     for step in range(max_length-1):
-
 
         logits=model.melody_decoder(
             generated,
@@ -304,54 +257,17 @@ def generate(
         # ======================
 
         if top_k:
-
-
-            values,indices=torch.topk(
-                next_logits,
-                top_k
-            )
-
-
-            probs=torch.softmax(
-                values,
-                dim=-1
-            )
-
-
-            sample=torch.multinomial(
-                probs,
-                1
-            )
-
-
-            next_token=indices.gather(
-                1,
-                sample
-            )
+            values,indices=torch.topk(next_logits,top_k)
+            probs=torch.softmax(values,dim=-1)
+            sample=torch.multinomial(probs,1)
+            next_token=indices.gather(1,sample)
 
 
         else:
+            probs=torch.softmax(next_logits, dim=-1)
+            next_token=torch.multinomial(probs,1)
 
-            probs=torch.softmax(
-                next_logits,
-                dim=-1
-            )
-
-
-            next_token=torch.multinomial(
-                probs,
-                1
-            )
-
-
-
-        generated=torch.cat(
-            [
-                generated,
-                next_token
-            ],
-            dim=1
-        )
+        generated=torch.cat([generated,next_token],dim=1)
 
 
 
@@ -373,34 +289,18 @@ print("Generating...")
 
 
 
-generated_ids=generate(
-    model,
-    harmony,
-    max_length=512,
-    temperature=0.8,
-    top_k=20
-)
+generated_ids=generate(model,harmony,max_length=1536,
+temperature=0.9,top_k=40)
 
 
 
-tokens=[
-
-    id_to_token[i]
-
-    for i in generated_ids
-
-]
+tokens=[id_to_token[i]for i in generated_ids]
 
 
-print(
-    "Generated tokens:",
-    len(tokens)
-)
+print("Generated tokens:",len(tokens))
 
 
-print(
-    tokens[:80]
-)
+# print(tokens[:80])
 
 
 
@@ -408,26 +308,10 @@ print(
 # Save tokens
 # ==================================================
 
-with open(
-    TOKEN_OUTPUT,
-    "w",
-    encoding="utf8"
-) as f:
+with open(TOKEN_OUTPUT,"w",encoding="utf8") as f:
+    json.dump(tokens,f,indent=2,ensure_ascii=False)
 
-
-    json.dump(
-        tokens,
-        f,
-        indent=2,
-        ensure_ascii=False
-    )
-
-
-
-print(
-    "Saved tokens:",
-    TOKEN_OUTPUT
-)
+print("Saved tokens:",TOKEN_OUTPUT)
 
 
 
@@ -435,17 +319,6 @@ print(
 # MIDI
 # ==================================================
 
-midi=tokens_to_midi(
-    tokens
-)
-
-
-midi.save(
-    MIDI_OUTPUT
-)
-
-
-print(
-    "Saved MIDI:",
-    MIDI_OUTPUT
-)
+midi=tokens_to_midi(tokens)
+midi.save(MIDI_OUTPUT)
+print("Saved MIDI:",MIDI_OUTPUT)
