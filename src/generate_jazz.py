@@ -228,8 +228,8 @@ print("Harmony prepared")
 # ==================================================
 
 @torch.no_grad()
-def generate(model,harmony, max_length=512,temperature=0.8,
-top_k=20):
+def generate(model,harmony, max_length=1536,temperature=0.9,
+top_k=40):
 
 
     memory=model.harmony_encoder.encode(**harmony)
