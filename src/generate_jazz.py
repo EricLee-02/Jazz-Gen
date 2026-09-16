@@ -115,7 +115,7 @@ model=JazzGenerationModel(
 
 
 
-checkpoint=torch.load( HARMONY_CHECKPOINT_DIRmap_location=DEVICE)
+checkpoint=torch.load( HARMONY_CHECKPOINT_DIR,map_location=DEVICE)
 
 if "model_state_dict" in checkpoint:
     state=checkpoint["model_state_dict"]
