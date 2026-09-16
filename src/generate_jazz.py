@@ -100,7 +100,7 @@ harmony_encoder=HarmonyModel(
 
 melody_decoder=JazzTransformer(
     vocab_size=len(token_to_id),
-    max_seq_len=512,
+    max_seq_len=2048,
     d_model=512,
     n_heads=8,
     num_layers=8,
