@@ -93,7 +93,7 @@ harmony_encoder=HarmonyModel(
     section_vocab_size=20,
     time_vocab_size=10,
     d_model=512,
-    n_heads=8,
+    num_heads=8,
     num_layers=6
 )
 
@@ -102,7 +102,7 @@ melody_decoder=JazzTransformer(
     vocab_size=len(token_to_id),
     max_seq_len=2048,
     d_model=512,
-    n_heads=8,
+    num_heads=8,
     num_layers=8,
     dropout=0.1
 )
