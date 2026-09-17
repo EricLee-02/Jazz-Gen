@@ -199,12 +199,7 @@ print("Harmony Encoder loaded")
 # 用户输入和弦
 
 chords=[
-  "CMaj7","CMin7 F7","BbMaj7","BMin7 Eb7",
-  "AbMaj7","DMin7 G7#9","CMaj7","CMaj7",
-  "DMin7","G7","CMaj7/E","A7",
-  "DMin7","G7","CMaj7","DMin7 G7",
-  "CMaj7","CMin7 F7","BbMaj7","BMin7 Eb7",
-  "AbMaj7","DMin7 G7#9","CMaj7","CMaj7",
+  "CMaj7","CMin7 F7","BbMaj7"
 ]
 
 
