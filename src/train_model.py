@@ -7,7 +7,7 @@ from .jazz_generation_dataset import JazzGenerationDataset
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .melody_generate_model import JazzGenerationModel
-from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,GENERATION_CHECKPOINT_DIR,MELODY_MAX_SEQ_LEN,MELODY_D_MODEL,MELODY_HEADS,MELODY_LAYERS,DROPOUT,CHORD_VOCAB_SIZE,DURATION_VOCAB_SIZE,BEAT_VOCAB_SIZE,SECTION_VOCAB_SIZE,TIME_VOCAB_SIZE,D_MODEL,NUM_HEADS,NUM_LAYERS,EPOCHS,BATCH_SIZE
+from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_FILE,HARMONY_CHECKPOINT_FILE,MELODY_VOCAB_FILE,GENERATION_CHECKPOINT_DIR,MELODY_MAX_SEQ_LEN,MELODY_D_MODEL,MELODY_HEADS,MELODY_LAYERS,DROPOUT,CHORD_VOCAB_SIZE,DURATION_VOCAB_SIZE,BEAT_VOCAB_SIZE,SECTION_VOCAB_SIZE,TIME_VOCAB_SIZE,D_MODEL,NUM_HEADS,NUM_LAYERS,EPOCHS,BATCH_SIZE
 
 
 
@@ -49,7 +49,7 @@ harmony_model=HarmonyModel(
 )
 
 
-checkpoint=torch.load(HARMONY_CHECKPOINT_DIR, map_location=DEVICE)
+checkpoint=torch.load(HARMONY_CHECKPOINT_FILE, map_location=DEVICE)
 if "encoder" in checkpoint:
     state = checkpoint["encoder"]
 elif "model_state_dict" in checkpoint:
@@ -81,7 +81,7 @@ melody_decoder=JazzTransformer(
     num_layers=MELODY_LAYERS,
     dropout=DROPOUT
 )
-melody_checkpoint=torch.load(MELODY_CHECKPOINT_DIR,map_location=DEVICE)
+melody_checkpoint=torch.load(MELODY_CHECKPOINT_FILE,map_location=DEVICE)
 if "encoder" in checkpoint:
     state = checkpoint["encoder"]
 elif "model_state_dict" in checkpoint:
