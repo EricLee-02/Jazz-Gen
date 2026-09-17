@@ -172,10 +172,11 @@ def validate():
 def main():
     global best_loss
     global best_epoch 
+    scaler = GradScaler()
 
     patience_counter = 0
     for epoch in range(start_epoch,EPOCHS+1):
-        train_loss=train_one_epoch(epoch)
+        train_loss=train_one_epoch(epoch,scaler)
         val_loss=validate()
         scheduler.step()
         print("="*50)
