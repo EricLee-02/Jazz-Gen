@@ -6,7 +6,7 @@ from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 from .midi_decoder import tokens_to_midi
-from .config import HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,OUTPUT_DIR,MELODY_CHECKPOINT_DIR,GENERATION_CHECKPOINT_DIR
+from .config import HARMONY_CHECKPOINT_FILE,MELODY_VOCAB_FILE,OUTPUT_DIR,MELODY_CHECKPOINT_FILE,GENERATION_CHECKPOINT_DIR
 
 
 # ==================================================
@@ -115,7 +115,7 @@ model=JazzGenerationModel(
 
 
 
-checkpoint=torch.load( HARMONY_CHECKPOINT_DIR,map_location=DEVICE)
+checkpoint=torch.load( HARMONY_CHECKPOINT_FILE,map_location=DEVICE)
 
 if "model_state_dict" in checkpoint:
     state=checkpoint["model_state_dict"]
@@ -131,7 +131,7 @@ melody_decoder.load_state_dict(
 )
 
 checkpoint=torch.load(
-    MELODY_CHECKPOINT_DIR,
+    MELODY_CHECKPOINT_FILE,
     map_location=DEVICE
 )
 
