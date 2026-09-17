@@ -12,17 +12,17 @@ class JazzFeatures:
     }
 
     Perform_Style_Map = {
-    "Swing":0,
-    "Bebop":1,
-    "Cool_Jazz":2,
-    "Hard_Bop":3,
-    "Modal_Jazz":4,
-    "Post_Bop":5,
-    "Free_Jazz":6,
-    "Jazz_Fusion":7,
-    "Latin_Jazz":8,
-    "Contemporary_Jazz":9, 
-    "Other":10
+    "SWING":0,
+    "BEBOP":1,
+    "COOL":2,
+    "HARDBOP":3,
+    "MODAL":4,
+    "POSTBOP":5,
+    "FREE":6,
+    "FUSION":7,
+    "LATIN":8,
+    "CONTEMPERY":9, 
+    "OTHER":10
     }
 
 
@@ -753,6 +753,23 @@ class JazzFeatures:
             "cadence_type":self.Cadence_MAP.get(cadence,0)
             }
     
+    def add_chord_embedding_WJazzD(self, melody_sequence, key):
+         # key处理
+        if isinstance(key,str):
+
+            key = key.replace("-maj","")
+            key = key.replace("-min","")
+
+            key_root = self.Note_MAP.get(key,0)
+
+        else:
+            key_root = int(key)
+        for event in melody_sequence:
+            chord = event.get("chord","")
+            feature = self.chord_embedding(chord,key_root)
+        # 注意这里修改event
+            event["chord_feature"] = feature
+        return melody_sequence
 
     def add_chord_embedding(self,chord_sequence, key):
         embeddings= []
@@ -761,7 +778,10 @@ class JazzFeatures:
         else: key_root = key
 
         for chord in chord_sequence:
+            if isinstance (chord,dict):
+                chord = chord.get("chord",chord.get("name",""))
             feature = self.chord_embedding(chord,key_root)
+            # embeddings.append(feature)
             embeddings.append(feature)
 
         return embeddings

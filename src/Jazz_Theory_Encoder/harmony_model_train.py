@@ -53,7 +53,7 @@ encoder=HarmonyModel(
     section_vocab_size=20,
     time_vocab_size=10,
     d_model=512,
-    n_heads=8,
+    num_heads=8,
     num_layers=6
 )
 

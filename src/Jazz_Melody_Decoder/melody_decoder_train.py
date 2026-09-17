@@ -7,7 +7,7 @@ from .build_jazz_dataset import JazzDataset
 from .melody_decoder_Transformer import JazzTransformer
 from src.Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from torch.amp import autocast, GradScaler
-from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR
+from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR,MELODY_MAX_SEQ_LEN,STRIDE,MELODY_D_MODEL,MELODY_HEADS,MELODY_LAYERS,DROPOUT,EPOCHS,BATCH_SIZE,LR,PATIENCE,WEIGHT_DECAY,CHORD_VOCAB_SIZE,DURATION_VOCAB_SIZE,BEAT_VOCAB_SIZE,SECTION_VOCAB_SIZE,TIME_VOCAB_SIZE,D_MODEL,NUM_HEADS,NUM_LAYERS
 
 
 # =========================
@@ -17,20 +17,17 @@ from src.config import MELODY_TOKEN_DIR,MELODY_VOCAB_FILE,MELODY_CHECKPOINT_DIR,
 # JSON_DIR = BASE_DIR + "/token"
 # VOCAB_FILE = BASE_DIR + "/vocabulary/vocabulary.json"
 # CHECKPOINT_DIR = "/content/drive/MyDrive/JazzGen_Data/check_point"
-SEQ_LENGTH = 512
-BATCH_SIZE = 8
-EPOCHS = 20
-LR = 3e-4
+
+
 # Early stopping
-PATIENCE = 8
-WEIGHT_DECAY = 0.01
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Device:", DEVICE)
 os.makedirs(MELODY_CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
-train_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="train")
-val_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=SEQ_LENGTH,stride=256,split="val")
+train_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="train")
+val_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="val")
 train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))
@@ -40,14 +37,14 @@ print("Validation samples:",len(val_dataset))
 vocab_size = len(train_dataset.token_to_id)
 
 harmony_encoder = HarmonyModel(
-    chord_vocab_size=1064,
-    duration_vocab_size=10,
-    beat_vocab_size=20,
-    section_vocab_size=20,
-    time_vocab_size=10,
-    d_model=512,
-    n_heads=8,
-    num_layers=6
+    chord_vocab_size=CHORD_VOCAB_SIZE,
+    duration_vocab_size=DURATION_VOCAB_SIZE,
+    beat_vocab_size=BEAT_VOCAB_SIZE,
+    section_vocab_size=SECTION_VOCAB_SIZE,
+    time_vocab_size=TIME_VOCAB_SIZE,
+    d_model=D_MODEL,
+    num_heads=NUM_HEADS,
+    num_layers=NUM_LAYERS
 )
 
 checkpoint=torch.load(HARMONY_CHECKPOINT_DIR,map_location=DEVICE)
@@ -68,11 +65,11 @@ print("Harmony Encoder loaded")
 
 model = JazzTransformer(
     vocab_size=vocab_size,
-    max_seq_len=SEQ_LENGTH,
-    d_model=512,
-    n_heads=8,
-    num_layers=8,
-    dropout=0.1)
+    max_seq_len=MELODY_MAX_SEQ_LEN,
+    d_model=MELODY_D_MODEL,
+    num_heads=MELODY_HEADS,
+    num_layers=MELODY_LAYERS,
+    dropout=DROPOUT)
 print("Model vocab size:", vocab_size)
 model.to(DEVICE)
 # Loss

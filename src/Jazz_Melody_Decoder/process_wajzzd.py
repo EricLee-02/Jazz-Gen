@@ -1,24 +1,30 @@
+import sys
+import os
+PROJECT_ROOT=os.path.dirname(os.path.dirname( os.path.abspath(__file__)))
+sys.path.append(PROJECT_ROOT)
 import json
+import numpy as np
 import sqlite3
 import mido 
 import pandas as pd 
 import traceback
-from JazzFeatures import JazzFeatures
+from jazz_features import JazzFeatures
 from pathlib import Path 
 
 # ============================================================
 # Paths
 # ============================================================
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # Path(__file__) : '/Volumes/My Passport/Jass Gen/scripts/process.py'
 # Path(__file__).resolve() absolute path
 # Path(__file__).resolve().parents[0] '/Volumes/My Passport/Jass Gen/scripts'; .parents[1] /Volumes/My Passport/Jass Gen
 
-DB_PATH = PROJECT_ROOT/"data/raw/WJazzD/wjazzd.db"
-MIDI_DIR = PROJECT_ROOT/"data/raw/WJazzD/midi"
-OUTPUT_DIR = PROJECT_ROOT/"data/processed/Jazz_json/WJazzD_JSON"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DB_PATH = PROJECT_ROOT / "data/raw/WJazzD/wjazzd.db"
 
+MIDI_DIR = PROJECT_ROOT / "data/raw/WJazzD/midi"
+OUTPUT_DIR = PROJECT_ROOT / "data/processed/Jazz_json/WJazzD_JSON"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Search all midi_file name
@@ -227,6 +233,10 @@ class Preprocess:
 
         melody = melody.sort_values(["onset", "eventid"]).reset_index(drop = True)
         beats = beats.sort_values(["onset", "beatid"]).reset_index(drop = True)
+        beats["chord"] = beats["chord"].replace("",np.nan)
+        beats["form"] = beats["form"].replace("",np.nan)
+        beats["chord"] = beats["chord"].ffill()
+        beats["form"] = beats["form"].ffill()
 
         # keep the info from beats we want to attach to every melody event
 
@@ -245,6 +255,9 @@ class Preprocess:
             right_on = 'beat_onset',
             direction= "backward"
         ) #base on the onset and find the value in beat_onset which is <= onset in order to combine the melody with beat
+
+        aligned["bar"] = melody["bar"].values
+        aligned["beat"] = melody["beat"].values
 
         aligned["delta_time"]=(aligned["onset"]-aligned["onset"].shift(1))
         aligned["delta_time"]=(aligned["delta_time"].fillna(0).round(3))
@@ -280,24 +293,28 @@ class Preprocess:
         aligned_df["key"] = metadata.get("key", "Unknown")
         aligned_df["style"] = metadata.get("style", "Unknown")
         aligned_df["tempo"] = metadata.get("avgtempo", 120)
+        aligned_df["bar"] = melody_df["bar"].values
+        aligned_df["beat"] = melody_df["beat"].values
+        aligned_df = aligned_df.drop(columns=["bar_x","beat_x","bar_y","beat_y"],errors="ignore")
+ 
         # convert Nan into Null and df to dict
-        melody_records = (melody_df.to_dict(orient="records")           )
+        melody_records = aligned_df.to_dict(orient="records")
+        print(aligned_df.columns)
+        print(aligned_df.iloc[0])
         beat_records = (beats_df.to_dict(orient="records"))
         melody_records = (self.features.add_velocity(melody_records,velocity_map))
         melody_records = (self.features.add_articulation(melody_records))
         melody_records = (self.features.add_micro_timing(melody_records))
-        melody_records = (self.features.add_chord_embedding(melody_records,beat_records))
+        melody_records=self.features.add_chord_embedding_WJazzD(melody_records,metadata.get("key","C"))
         swing_ratio = (self.features.calculate_swing(melody_records))
-        style_embedding = (self.features.style_embedding( metadata.get("style","OTHER")))
+        style_embedding = (self.features.style_embedding( metadata.get("style","Other")))
         metadata["swing_ratio"] = swing_ratio
         metadata["style_embedding"] = style_embedding
 
 
 
 
-        aligned_records = (
-            aligned_df.to_dict(orient="records")
-            )
+        aligned_records = (aligned_df.to_dict(orient="records"))
         
         # Unified sample
         sample = {

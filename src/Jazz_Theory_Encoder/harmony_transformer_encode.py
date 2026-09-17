@@ -36,13 +36,13 @@ class PositionalEncoding(nn.Module):
 # ==================================================
 
 class HarmonyEncoder(nn.Module):
-    def __init__(self,d_model=512,n_heads=8,num_layers=6,dim_feedforward=2048,dropout=0.1, max_len=512):
+    def __init__(self,d_model=512,num_heads=8,num_layers=6,dim_feedforward=2048,dropout=0.1, max_len=512):
         super().__init__()
         # position
         self.position_encoding = PositionalEncoding(d_model,max_len)
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
-            nhead=n_heads,
+            nhead=num_heads,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
             batch_first=True,

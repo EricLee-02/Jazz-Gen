@@ -3,6 +3,7 @@ from pathlib import Path
 from collections import Counter
 import re 
 import math
+from src.jazz_features import JazzFeatures
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 input_dir = BASE_DIR / "data/processed/Jazz_json/WJazzD_JSON"  
@@ -70,6 +71,7 @@ class JazzMetadataProcessor:
             3.34,
             3.17
             ]
+        self.jazz_feature = JazzFeatures()
 
     # Key Detection
     def parse_key(self, metadata):

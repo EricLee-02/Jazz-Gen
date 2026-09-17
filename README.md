@@ -5,14 +5,14 @@ A Transformer-based Jazz Music Generation System.
 ## Architecture
 
 - Custom Jazz Tokenizer
-- Decoder-only Transformer
+- Transformer
 - Multi-head Self Attention
 - Jazz Harmony Constraint Module
 
 ## Dataset
 
 - WJazzD
-- Lakh MIDI
+- iReal Pro
 
 ## Training
 

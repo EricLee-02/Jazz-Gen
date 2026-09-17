@@ -18,7 +18,7 @@ class HarmonyModel(nn.Module):
         # embedding
         d_model=512,
         # transformer
-        n_heads=8,
+        num_heads=8,
         num_layers=6,
         dim_feedforward=2048,
         dropout=0.1,
@@ -49,7 +49,7 @@ class HarmonyModel(nn.Module):
 
         self.encoder = HarmonyEncoder(
             d_model=d_model,
-            n_heads=n_heads,
+            num_heads=num_heads,
             num_layers=num_layers,
             dim_feedforward=dim_feedforward,
             dropout=dropout,

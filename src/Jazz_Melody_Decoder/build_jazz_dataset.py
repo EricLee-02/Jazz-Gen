@@ -9,6 +9,7 @@ from src.jazz_features import JazzFeatures
 
 
 
+
 class JazzDataset(Dataset):
 
 
@@ -16,8 +17,8 @@ class JazzDataset(Dataset):
         self,
         solo_dir,
         vocab_file,
-        seq_length=512,
-        stride=256,
+        seq_length,
+        stride,
         split="train",
         train_ratio=0.9,
         seed=42

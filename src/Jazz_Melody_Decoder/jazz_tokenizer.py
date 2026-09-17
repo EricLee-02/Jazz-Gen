@@ -2,12 +2,18 @@ import json
 from pathlib import Path
 from collections import Counter
 
-Json_V1_Dir= '/Volumes/My Passport/Jazz Gen/data/processed/Jazz_json/WJazzD_JSON'
-Json_V2_Dir = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2'
-Token_OutPut_Dir = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/token'
-Vocabulary_Output_Dir='/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/vocabulary'
+
+Json_V1_Dir = '/Volumes/My Passport/Jazz Gen/data/processed/Jazz_json/WJazzD_JSON'
+
+
+Token_Output_Dir = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/token'
+
+Vocabulary_Output_Dir = '/Volumes/My Passport/Jazz Gen/data/processed/jazz_json_v2_token/vocabulary'
+
 
 class JazzTokenizer:
+
+
     def __init__(self):
 
         self.special_tokens=[
@@ -16,149 +22,457 @@ class JazzTokenizer:
             "<EOS>",
             "<UNK>"
         ]
+
         self.token_to_id={}
         self.id_to_token={}
 
 
-    # chord token
-    def chord_tokens(self,chord):
-        tokens=[]
-        if chord:
-            tokens.append(f"CHORD_{chord}")
-        return tokens
+
+    # ===============================
+    # duration quantization
+    # ===============================
+
+    def duration_token(self,duration):
+
+        if duration < 0.08:
+            return "DURATION_32"
+
+        elif duration < 0.16:
+            return "DURATION_16"
+
+        elif duration < 0.30:
+            return "DURATION_8"
+
+        elif duration < 0.60:
+            return "DURATION_4"
+
+        elif duration < 1.2:
+            return "DURATION_2"
+
+        else:
+            return "DURATION_LONG"
 
 
-    # note token
-  
-    def note_tokens(self,note):
-        tokens=[]
-        pitch=note["pitch"]
-        time=note.get("time",0)
-        duration=note.get("duration",120)
-        velocity=note.get("velocity",80)
 
-        # bar
-        bar=time//1920
-        beat=bar//480
-        tokens.append( "<BAR>")
-        tokens.append(f"BEAT_{beat}")
-        # position
-        position=(time%480)//60
-        tokens.append(f"POSITION_{position}")
+    # ===============================
+    # velocity
+    # ===============================
 
-        # pitch
-        tokens.append(f"PITCH_{pitch}")
-        # interval
-        if "previous_pitch" in note:
-            interval=(pitch-note["previous_pitch"])
-            tokens.append(f"INTERVAL_{interval}")
-        # duration
-        tokens.append(f"DURATION_{duration}")
-        # velocity
-        vel=velocity//10*10
-        tokens.append(f"VELOCITY_{vel}")
-        return tokens
+    def velocity_token(self,velocity):
 
-    # metadata token
+        velocity=int(velocity)
+
+        velocity=velocity//10*10
+
+        return f"VELOCITY_{velocity}"
+
+
+
+    # ===============================
+    # micro timing
+    # ===============================
+
+    def micro_token(self,micro):
+
+        if micro < -0.05:
+            return "MICRO_EARLY"
+
+        elif micro > 0.05:
+            return "MICRO_LATE"
+
+        else:
+            return "MICRO_GRID"
+
+
+
+    # ===============================
+    # metadata
+    # ===============================
+
     def metadata_tokens(self,metadata):
+
         tokens=[]
+
         if not metadata:
             return tokens
-        for key,value in metadata.items():
-            if key=="style_embedding":
-                continue
-            tokens.append(f"{key.upper()}_{value}")
+
+
+        keep=[
+            "key",
+            "mode",
+            "scale",
+            "style",
+            "tempo",
+            "swing_ratio"
+        ]
+
+
+        for k in keep:
+
+            if k in metadata:
+
+                value=metadata[k]
+
+                tokens.append(
+                    f"{k.upper()}_{value}"
+                )
+
+
         return tokens
 
 
-    # 单曲编码
- 
-    def encode_song(self,data):
+
+    # ===============================
+    # note token
+    # ===============================
+
+    def note_tokens(self,note):
+
         tokens=[]
+
+
+        tokens.append(
+            f"BAR_{note.get('bar',0)}"
+        )
+
+
+        tokens.append(
+            f"BEAT_{note.get('beat',0)}"
+        )
+
+
+        tokens.append(
+            f"TATUM_{note.get('tatum',0)}"
+        )
+
+
+        tokens.append(
+            f"POSITION_{note.get('position','0')}"
+        )
+
+
+        tokens.append(
+            f"PITCH_{int(note['pitch'])}"
+        )
+
+
+        tokens.append(
+            self.duration_token(
+                note.get("duration",0.25)
+            )
+        )
+
+
+        tokens.append(
+            self.velocity_token(
+                note.get("velocity",80)
+            )
+        )
+
+
+        if "articulation" in note:
+
+            tokens.append(
+                f"ARTIC_{note['articulation']}"
+            )
+
+
+        if "micro_timing" in note:
+
+            tokens.append(
+                self.micro_token(
+                    note["micro_timing"]
+                )
+            )
+
+
+        return tokens
+
+
+
+    # ===============================
+    # chord token
+    # only when chord changes
+    # ===============================
+
+    def chord_token(self,note):
+        tokens =[]
+        chord = note.get("chord")
+        feature = note.get("chord_feature",{})
+        if chord is None:
+            return tokens
+
+        chord=note.get("chord")
+
+        if chord in ["","N.C","NC","None","nan"]:
+            return tokens
+        tokens.append(f"Chord_{chord}")
+
+        root = feature.get("root_pitch_class")
+        if root is not None : 
+            tokens.append(f"ROOT_PC_{root}")
+
+        roman = feature.get("roman_numeral")
+        if roman:
+            tokens.append(f"ROMAN_{roman}")
+
+        quality =feature.get("attribute")
+        if quality:
+            tokens.append(f"QUALITY_{quality}")
+
+        function = feature.get("function")
+        if function:
+            tokens.append(f"FUNCTION_{function}")
+        return tokens
+
+
+
+
+
+    # ===============================
+    # encode song
+    # ===============================
+
+    def encode_song(self,data):
+
+        tokens=[]
+
         tokens.append("<BOS>")
 
+
         # metadata
-        tokens.extend(self.metadata_tokens(data.get("metadata_v2",{})))
-        # chords
-        chord_map={c["time"]:c["chord"] for c in data.get("chords",[])}
-        previous_pitch=None
-        # melody
+
+        tokens.extend(self.metadata_tokens(data.get("metadata",{})))
+
+        previous_chord=None
         for note in data["melody"]:
-            time=note.get("time",0)
-            if time in chord_map:
-                tokens.extend(
-                    self.chord_tokens(chord_map[time]))
-            if previous_pitch is not None:
-                note["previous_pitch"]=previous_pitch
+            current_chord=note.get("chord")
+            # chord change
+
+            if current_chord:
+                current_chord = str(current_chord).strip()
+
+            if current_chord in ["","N.C","NC","None","nan"]:
+                current_chord = None
+            
+            if current_chord != previous_chord:
+                if current_chord:
+                    tokens.extend(self.chord_token(note))
+                previous_chord = current_chord
             tokens.extend(self.note_tokens(note))
-            previous_pitch=note["pitch"]
         tokens.append("<EOS>")
         return tokens
+ 
 
 
-    # 建立词表
+
+
+    # ===============================
+    # build vocabulary
+    # ===============================
+
     def build_vocab(self,json_files):
+
         counter=Counter()
+
+
         for file in json_files:
-            with open(file,encoding="utf8") as f:
+
+            with open(
+                file,
+                encoding="utf8"
+            ) as f:
+
                 data=json.load(f)
+
+
             tokens=self.encode_song(data)
+
             counter.update(tokens)
+
+
+
         vocab=self.special_tokens.copy()
 
-        valid_tokens = []
+
+        valid=[]
+
 
         for token,count in counter.items():
-            if (count>=2 or token.startswith(("TEMPO","SWING","KEY","MODE","SCALE","STYLE"))):
-                valid_tokens.append(token)
-        valid_tokens =sorted(valid_tokens)
-        vocab.extend(valid_tokens)
-        vocab = list(dict.fromkeys(vocab))
-        # print("vocab list length", len(vocab))
-        # print("last 10 tokens", vocab[-10:])
-        self.token_to_id={token:i for i,token in enumerate(vocab)}
-        self.id_to_token={i:token for token ,i in self.token_to_id.items()}
-        # print("TEMPO tokens:",sum(1 for t in vocab if t.startswith("TEMPO")))
-        # print("SWING tokens:",sum(1 for t in vocab if t.startswith("SWING")))
-        # print("Vocabulary size:",len(self.token_to_id))
-        # print("Max token id", max(self.token_to_id.values()))
-        # print("Min token id", min(self.token_to_id.values()))
 
-    # token转id
+            if count>=2:
+
+                valid.append(token)
+
+
+
+        vocab.extend(
+            sorted(valid)
+        )
+
+
+        vocab=list(
+            dict.fromkeys(vocab)
+        )
+
+
+        self.token_to_id={
+            t:i
+            for i,t in enumerate(vocab)
+        }
+
+
+        self.id_to_token={
+            i:t
+            for t,i in self.token_to_id.items()
+        }
+
+
+        print(
+            "Vocabulary size:",
+            len(vocab)
+        )
+
+
+
+    # ===============================
+    # convert
+    # ===============================
+
     def convert_ids(self,tokens):
-        return [self.token_to_id.get(token,self.token_to_id["<UNK>"])for token in tokens]
-    
-    # 保存
-    def tokenize_dataset(self,input_dir,output_dir):
+
+        return [
+            self.token_to_id.get(
+                t,
+                self.token_to_id["<UNK>"]
+            )
+            for t in tokens
+        ]
+
+
+
+    # ===============================
+    # tokenize dataset
+    # ===============================
+
+    def tokenize_dataset(
+            self,
+            input_dir,
+            output_dir):
+
+
         input_dir=Path(input_dir)
         output_dir=Path(output_dir)
-        output_dir.mkdir(parents=True,exist_ok=True)
+
+        output_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+
         for file in input_dir.glob("*.json"):
-            with open(file,encoding="utf8") as f:
+
+
+            with open(
+                file,
+                encoding="utf8"
+            ) as f:
+
                 data=json.load(f)
+
+
+
             tokens=self.encode_song(data)
+
             ids=self.convert_ids(tokens)
-            with open(output_dir/file.name,"w",encoding="utf8") as f:
+
+
+
+            with open(
+                output_dir/file.name,
+                "w",
+                encoding="utf8"
+            ) as f:
+
+
                 json.dump(
                     {
-                    "tokens":tokens,
-                    "ids":ids},f,indent=2,ensure_ascii=False)
+                        "tokens":tokens,
+                        "ids":ids
+                    },
+                    f,
+                    indent=2,
+                    ensure_ascii=False
+                )
+
+
+
+    # ===============================
+    # save vocab
+    # ===============================
 
     def save_vocab(self,path):
-        path = Path(path)
-        path.parent.mkdir(parents=True,exist_ok=True)
-        vocabulary_file = path / "vocabulary.json"
-        with open(vocabulary_file,"w",encoding="utf8") as f:
-            json.dump({
+
+        path=Path(path)
+
+        path.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+
+        with open(
+            path/"vocabulary.json",
+            "w",
+            encoding="utf8"
+        ) as f:
+
+
+            json.dump(
+                {
                 "token_to_id":self.token_to_id,
-                "id_to_token":self.id_to_token},f,indent=2,ensure_ascii=False)
-        print("Vocabulary_Saved", vocabulary_file)
+                "id_to_token":self.id_to_token
+                },
+                f,
+                indent=2,
+                ensure_ascii=False
+            )
+
+
+        print(
+            "Vocabulary saved"
+        )
+
+
+
+
+
 if __name__=="__main__":
+
+
     tokenizer=JazzTokenizer()
-    json_v2_dir = Path(Json_V2_Dir)
-    files=list(json_v2_dir.glob("*.json"))
-    print("Songs:",len(files))
+
+
+    files=list(
+        Path(Json_V1_Dir).glob("*.json")
+    )
+
+
+    print(
+        "Songs:",
+        len(files)
+    )
+
+
     tokenizer.build_vocab(files)
-    tokenizer.save_vocab(Vocabulary_Output_Dir)
-    tokenizer.tokenize_dataset(Json_V2_Dir,Token_OutPut_Dir)
+
+
+    tokenizer.save_vocab(
+        Vocabulary_Output_Dir
+    )
+
+
+    tokenizer.tokenize_dataset(Json_V1_Dir,Token_Output_Dir)
+
+
     print("Tokenizer finished")
