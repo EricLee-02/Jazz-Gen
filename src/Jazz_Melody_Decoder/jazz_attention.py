@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-
+from src.config import MELODY_MAX_SEQ_LEN
 
 class JazzAttention(nn.Module):
     def __init__(self,d_model,heads,dropout=0.1):
@@ -28,7 +28,7 @@ class JazzAttention(nn.Module):
 
         assert C == self.d_model, (f"Attention dim error {C}")
 
-        assert T <= 512, (f"Sequence too long {T}")
+        assert T <= MELODY_MAX_SEQ_LEN, (f"Sequence too long {T}")
 
 
         Q=self.q_proj(x)
