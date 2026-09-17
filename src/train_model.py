@@ -7,7 +7,7 @@ from .jazz_generation_dataset import JazzGenerationDataset
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .melody_generate_model import JazzGenerationModel
-from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,GENERATION_CHECKPOINT_DIR
+from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DIR,MELODY_VOCAB_FILE,GENERATION_CHECKPOINT_DIR,MELODY_MAX_SEQ_LEN,MELODY_D_MODEL,MELODY_HEADS,MELODY_LAYERS,DROPOUT,CHORD_VOCAB_SIZE,DURATION_VOCAB_SIZE,BEAT_VOCAB_SIZE,SECTION_VOCAB_SIZE,TIME_VOCAB_SIZE,D_MODEL,NUM_HEADS,NUM_LAYERS,EPOCHS,BATCH_SIZE
 
 
 
@@ -18,8 +18,6 @@ from .config import MELODY_TOKEN_DIR,MELODY_CHECKPOINT_DIR,HARMONY_CHECKPOINT_DI
 
 os.makedirs(GENERATION_CHECKPOINT_DIR,exist_ok=True)
 DEVICE=torch.device("cuda"if torch.cuda.is_available()else "cpu")
-BATCH_SIZE=8
-EPOCHS=50
 
 
 
@@ -40,14 +38,14 @@ print("Dataset:",len(dataset))
 
 
 harmony_model=HarmonyModel(
-    chord_vocab_size=1064,
-    duration_vocab_size=10,
-    beat_vocab_size=20,
-    section_vocab_size=20,
-    time_vocab_size=10,
-    d_model=512,
-    n_heads=8,
-    num_layers=6
+    chord_vocab_size=CHORD_VOCAB_SIZE,
+    duration_vocab_size=DURATION_VOCAB_SIZE,
+    beat_vocab_size=BEAT_VOCAB_SIZE,
+    section_vocab_size=SECTION_VOCAB_SIZE,
+    time_vocab_size=TIME_VOCAB_SIZE,
+    d_model=D_MODEL,
+    num_heads=NUM_HEADS,
+    num_layers=NUM_LAYERS
 )
 
 
@@ -77,11 +75,11 @@ vocab_size = len(vocab["token_to_id"])
 # ===============================
 melody_decoder=JazzTransformer(
     vocab_size=vocab_size,
-    max_seq_len=512,
-    d_model=512,
-    n_heads=8,
-    num_layers=8,
-    dropout=0.1
+    max_seq_len=MELODY_MAX_SEQ_LEN,
+    d_model=MELODY_D_MODEL,
+    num_heads=MELODY_HEADS,
+    num_layers=MELODY_LAYERS,
+    dropout=DROPOUT
 )
 melody_checkpoint=torch.load(MELODY_CHECKPOINT_DIR,map_location=DEVICE)
 if "encoder" in checkpoint:

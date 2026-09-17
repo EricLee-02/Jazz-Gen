@@ -136,9 +136,9 @@ def train_one_epoch(epoch):
 
         if batch_idx % 50 == 0:
             gpu_memory = (torch.cuda.memory_allocated()/1024**3)
-            print(f"Epoch {epoch} "
-                  f"Step {batch_idx} "
-                  f"Loss {loss.item():.4f}"
+            print(f"Epoch {epoch} ", 
+                  f"Step {batch_idx} ", 
+                  f"Loss {loss.item():.4f}", 
                   f"GPU {gpu_memory:.2f}GB")
             
     return total_loss / len(train_loader)
