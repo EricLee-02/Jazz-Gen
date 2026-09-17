@@ -13,9 +13,9 @@ TICKS_PER_BEAT = 480
 
 
 
-# ==========================
-# token parser
-# ==========================
+# =========================
+# token value
+# =========================
 
 def get_value(token):
 
@@ -25,18 +25,18 @@ def get_value(token):
         return int(value)
 
     except:
-
         return value
 
 
 
-# ==========================
+# =========================
 # duration
-# ==========================
+# =========================
 
-def duration_to_beats(token):
+def duration_to_ticks(token):
 
-    table={
+
+    duration_map = {
 
         "DURATION_32":0.125,
 
@@ -51,77 +51,100 @@ def duration_to_beats(token):
         "DURATION_1":4.0,
 
         "DURATION_LONG":4.0
+
     }
 
 
-    return table.get(
+    beats = duration_map.get(
         token,
         0.25
     )
 
 
-
-# ==========================
-# micro timing
-# ==========================
-
-def micro_offset(token):
-
-    if token=="MICRO_LATE":
-
-        return 30
-
-
-    elif token=="MICRO_EARLY":
-
-        return -30
-
-
-    return 0
+    return int(
+        beats*TICKS_PER_BEAT
+    )
 
 
 
-# ==========================
-# swing deformation
-# ==========================
+# =========================
+# calculate note position
+# =========================
 
-def apply_swing(tick, swing_ratio):
+def calculate_tick(
+        bar,
+        beat,
+        position
+):
 
     """
-    simple jazz swing
+    WJazzD:
 
-    ratio >1 means swing feel
+    bar: 0-based
+
+    beat: 1-4
+
+    position:
+        beat-tatum
+
     """
 
-    if swing_ratio <=1.2:
+    tick = (
 
-        return tick
+        bar
+        *
+        4
+        *
+        TICKS_PER_BEAT
 
-
-    beat_position = tick % 480
-
-
-    # second eighth note delay
-
-    if 240 <= beat_position < 480:
-
-        shift = int(
-            (swing_ratio-1)
-            *
-            40
-        )
-
-        tick += shift
+    )
 
 
-    return tick
+    # beat convert
+    tick += (
+
+        beat-1
+
+    ) * TICKS_PER_BEAT
 
 
 
-# ==========================
-# tokens -> midi
-# ==========================
+    # position
 
+    if isinstance(position,str):
+
+        try:
+
+            beat_part, tatum_part = position.split("-")
+
+
+            tatum=int(tatum_part)
+
+
+            # 每拍4 subdivision
+
+            tick += int(
+                (tatum-1)
+                *
+                TICKS_PER_BEAT/4
+            )
+
+
+        except:
+
+            pass
+
+
+
+    return int(tick)
+
+
+
+
+
+# =========================
+# decode
+# =========================
 
 def tokens_to_midi(tokens):
 
@@ -141,29 +164,18 @@ def tokens_to_midi(tokens):
 
     bar=0
 
-    beat=0
+    beat=1
 
-    tatum=0
-
-    position=None
+    position="1-1"
 
 
     velocity=80
 
     duration="DURATION_16"
 
-    micro="MICRO_GRID"
-
-    swing_ratio=1.0
 
 
-    pending_notes=[]
-
-
-
-    # current time
-
-    current_tick=0
+    notes=[]
 
 
 
@@ -171,29 +183,11 @@ def tokens_to_midi(tokens):
 
 
 
-        # =====================
-        # metadata
-        # =====================
+        # -------------------
+        # bar
+        # -------------------
 
-        if token.startswith("SWING_RATIO"):
-
-            try:
-
-                swing_ratio=float(
-                    token.split("_")[-1]
-                )
-
-            except:
-
-                pass
-
-
-
-        # =====================
-        # position
-        # =====================
-
-        elif token.startswith("<BAR"):
+        if token.startswith("<BAR"):
 
 
             bar=get_value(token)
@@ -202,101 +196,49 @@ def tokens_to_midi(tokens):
 
         elif token.startswith("BEAT"):
 
+
             beat=get_value(token)
-
-
-
-        elif token.startswith("TATUM"):
-
-            tatum=get_value(token)
 
 
 
         elif token.startswith("POSITION"):
 
-            position=get_value(token)
 
+            position=token.split("_")[-1]
 
-
-        # =====================
-        # note feature
-        # =====================
 
 
         elif token.startswith("VELOCITY"):
 
 
-            velocity=int(
-                get_value(token)
-            )
+            velocity=get_value(token)
 
 
 
         elif token.startswith("DURATION"):
 
+
             duration=token
-
-
-
-        elif token.startswith("MICRO"):
-
-            micro=token
 
 
 
         elif token.startswith("PITCH"):
 
 
-            pitch=int(
-                get_value(token)
-            )
+            pitch=get_value(token)
 
 
-            # =====================
-            # calculate onset
-            # =====================
 
+            onset=calculate_tick(
 
-            onset = (
-
-                bar
-                *
-                4
-                *
-                TICKS_PER_BEAT
-
-                +
-
-                beat
-                *
-                TICKS_PER_BEAT
-
-                +
-
-                tatum
-                *
-                (
-                    TICKS_PER_BEAT/4
-                )
+                bar,
+                beat,
+                position
 
             )
 
 
-            onset += micro_offset(
-                micro
-            )
-
-
-            onset=int(
-                apply_swing(
-                    onset,
-                    swing_ratio
-                )
-            )
-
-
-
-            pending_notes.append(
+            notes.append(
 
                 {
 
@@ -304,9 +246,11 @@ def tokens_to_midi(tokens):
 
                 "velocity":velocity,
 
-                "duration":duration,
+                "start":onset,
 
-                "onset":onset
+                "end":
+                onset+
+                duration_to_ticks(duration)
 
                 }
 
@@ -314,44 +258,33 @@ def tokens_to_midi(tokens):
 
 
 
-    # =====================
+
+    # =========================
     # write midi
-    # =====================
+    # =========================
 
 
     events=[]
 
 
-    for note in pending_notes:
-
-
-        start=note["onset"]
-
-        length=int(
-
-            duration_to_beats(
-                note["duration"]
-            )
-
-            *
-
-            TICKS_PER_BEAT
-
-        )
-
-
-        end=start+length
+    for note in notes:
 
 
         events.append(
 
             (
-                start,
+                note["start"],
+
                 Message(
+
                     "note_on",
+
                     note=note["pitch"],
+
                     velocity=note["velocity"],
+
                     time=0
+
                 )
 
             )
@@ -362,13 +295,18 @@ def tokens_to_midi(tokens):
         events.append(
 
             (
-                end,
+                note["end"],
 
                 Message(
+
                     "note_off",
+
                     note=note["pitch"],
+
                     velocity=0,
+
                     time=0
+
                 )
 
             )
@@ -377,26 +315,27 @@ def tokens_to_midi(tokens):
 
 
 
-    # sort by time
+    # sort by absolute time
 
     events.sort(
         key=lambda x:x[0]
     )
 
 
-    last_time=0
+
+    current_time=0
 
 
-    for time,msg in events:
+    for tick,msg in events:
 
 
         msg.time=int(
-            time-last_time
+            tick-current_time
         )
 
         track.append(msg)
 
-        last_time=time
+        current_time=tick
 
 
 
@@ -405,10 +344,10 @@ def tokens_to_midi(tokens):
 
 
 
-# ==========================
-# main
-# ==========================
 
+# =========================
+# main
+# =========================
 
 if __name__=="__main__":
 
@@ -428,9 +367,7 @@ if __name__=="__main__":
     )
 
 
-
     midi=tokens_to_midi(tokens)
-
 
 
     midi.save(
