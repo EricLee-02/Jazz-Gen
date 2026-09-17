@@ -1,4 +1,3 @@
-import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 
 
@@ -7,9 +6,9 @@ TICKS_PER_BEAT = 480
 
 
 
-# ==============================
-# token parser
-# ==============================
+# ==================================
+# token value
+# ============================== ====
 
 def get_value(token):
 
@@ -19,20 +18,27 @@ def get_value(token):
         return int(value)
 
     except:
+
         try:
             return float(value)
+
         except:
             return value
 
 
 
-# ==============================
-# duration
-# ==============================
 
-def duration_to_tick(token):
+# ==================================
+# duration
+# ==================================
+
+def duration_to_ticks(token):
+
 
     duration_map = {
+
+
+        # beat单位
 
         "DURATION_32":0.125,
 
@@ -44,9 +50,8 @@ def duration_to_tick(token):
 
         "DURATION_2":2.0,
 
-        "DURATION_1":4.0,
-
         "DURATION_LONG":4.0
+
 
     }
 
@@ -63,41 +68,136 @@ def duration_to_tick(token):
 
 
 
-# ==============================
-# swing
-# ==============================
 
-def apply_swing(tick, swing_ratio):
+
+# ==================================
+# position -> tick
+# ==================================
+
+def calculate_tick(
+        bar,
+        position
+):
+
 
     """
-    Jazz swing:
-    
-    straight:
-        1:1
+    WJazzD position:
 
-    swing:
-        2:1
-        3:1
+    1-1
+    1-2
+    2-1
+    3-4
 
 
-    only affect off-beat eighth notes
+    first:
+        beat
+
+    second:
+        tatum subdivision
 
     """
 
 
-    if swing_ratio <= 1.15:
+    tick = (
+
+        bar
+        *
+        4
+        *
+        TICKS_PER_BEAT
+
+    )
+
+
+
+    if position is None:
 
         return tick
 
 
 
-    beat_position = tick % TICKS_PER_BEAT
+    try:
+
+
+        beat,tatum = position.split("-")
+
+
+        beat=int(beat)
+
+        tatum=int(tatum)
 
 
 
-    # eighth note second half
+        # beat position
 
-    if 200 <= beat_position <= 350:
+        tick += (
+
+            beat-1
+
+        ) * TICKS_PER_BEAT
+
+
+
+        # subdivision
+
+        tick += (
+
+            tatum-1
+
+        ) * (
+
+            TICKS_PER_BEAT/4
+
+        )
+
+
+
+    except Exception as e:
+
+
+        print(
+            "position error:",
+            position,
+            e
+        )
+
+
+
+    return int(tick)
+
+
+
+
+
+# ==================================
+# swing
+# ==================================
+
+def apply_swing(
+        tick,
+        swing_ratio
+):
+
+
+    """
+    only move off beat eighth notes
+
+    """
+
+
+    if swing_ratio <= 1.1:
+
+        return tick
+
+
+
+    beat_pos = tick % TICKS_PER_BEAT
+
+
+
+    # second eighth note
+
+    if 200 < beat_pos < 400:
 
 
         delay = int(
@@ -120,21 +220,26 @@ def apply_swing(tick, swing_ratio):
 
 
 
-# ==============================
-# micro timing
-# ==============================
 
-def apply_micro(tick, micro):
+
+# ==================================
+# micro timing
+# ==================================
+
+def apply_micro(
+        tick,
+        micro
+):
 
 
     if micro=="MICRO_LATE":
 
-        tick += 20
+        tick += 15
 
 
     elif micro=="MICRO_EARLY":
 
-        tick -= 20
+        tick -= 15
 
 
     return tick
@@ -142,96 +247,16 @@ def apply_micro(tick, micro):
 
 
 
-# ==============================
-# calculate position
-# ==============================
-
-def calculate_tick(
-        bar,
-        beat,
-        position
-):
 
 
-    """
-
-    bar:
-        0 based
-
-
-    beat:
-        1-4
-
-
-    position:
-        beat-tatum
-
-
-    """
-
-
-    tick = (
-
-        bar
-        *
-        4
-        *
-        TICKS_PER_BEAT
-
-    )
-
-
-    tick += (
-
-        beat-1
-
-    ) * TICKS_PER_BEAT
-
-
-
-
-    if position:
-
-
-        try:
-
-            beat_id,sub = position.split("-")
-
-            sub=int(sub)
-
-
-
-            tick += int(
-
-                (sub-1)
-
-                *
-
-                TICKS_PER_BEAT/4
-
-            )
-
-
-        except:
-
-            pass
-
-
-
-    return tick
-
-
-
-
-# ==============================
-# tokens -> MIDI
-# ==============================
-
+# ==================================
+# main decoder
+# ==================================
 
 def tokens_to_midi(tokens):
 
 
-    midi = MidiFile(
+    midi=MidiFile(
         ticks_per_beat=TICKS_PER_BEAT
     )
 
@@ -242,14 +267,12 @@ def tokens_to_midi(tokens):
 
 
 
-    # state
+    # current state
+
 
     bar=0
 
-    beat=1
-
     position="1-1"
-
 
     velocity=80
 
@@ -260,6 +283,7 @@ def tokens_to_midi(tokens):
     swing_ratio=1.0
 
 
+
     notes=[]
 
 
@@ -268,27 +292,25 @@ def tokens_to_midi(tokens):
 
 
 
-        # --------------------
+        # --------------------------
         # metadata
-        # --------------------
+        # --------------------------
 
         if token.startswith(
             "SWING_RATIO"
         ):
 
 
-            try:
-
-                swing_ratio=float(
-                    token.split("_")[-1]
-                )
-
-            except:
-
-                pass
+            swing_ratio=float(
+                token.split("_")[-1]
+            )
 
 
 
+
+        # --------------------------
+        # position
+        # --------------------------
 
         elif token.startswith(
             "<BAR"
@@ -296,17 +318,6 @@ def tokens_to_midi(tokens):
 
 
             bar=get_value(token)
-
-
-
-
-        elif token.startswith(
-            "BEAT"
-        ):
-
-
-            beat=get_value(token)
-
 
 
 
@@ -319,7 +330,6 @@ def tokens_to_midi(tokens):
 
 
 
-
         elif token.startswith(
             "VELOCITY"
         ):
@@ -329,14 +339,12 @@ def tokens_to_midi(tokens):
 
 
 
-
         elif token.startswith(
             "DURATION"
         ):
 
 
             duration=token
-
 
 
 
@@ -350,6 +358,10 @@ def tokens_to_midi(tokens):
 
 
 
+        # --------------------------
+        # note
+        # --------------------------
+
         elif token.startswith(
             "PITCH"
         ):
@@ -359,11 +371,9 @@ def tokens_to_midi(tokens):
 
 
 
-            onset=calculate_tick(
+            start=calculate_tick(
 
                 bar,
-
-                beat,
 
                 position
 
@@ -372,22 +382,36 @@ def tokens_to_midi(tokens):
 
             # swing
 
-            onset=apply_swing(
+            start=apply_swing(
 
-                onset,
+                start,
 
                 swing_ratio
 
             )
 
 
-            # micro timing
+            # micro
 
-            onset=apply_micro(
+            start=apply_micro(
 
-                onset,
+                start,
 
                 micro
+
+            )
+
+
+
+            end=(
+
+                start
+
+                +
+
+                duration_to_ticks(
+                    duration
+                )
 
             )
 
@@ -401,13 +425,9 @@ def tokens_to_midi(tokens):
 
                 "velocity":velocity,
 
-                "start":onset,
+                "start":start,
 
-                "end":
-                onset+
-                duration_to_tick(
-                    duration
-                )
+                "end":end
 
                 }
 
@@ -415,29 +435,52 @@ def tokens_to_midi(tokens):
 
 
 
-    # =====================
-    # write MIDI events
-    # =====================
+
+    print(
+        "Generated notes:",
+        len(notes)
+    )
+
+
+
+    print(
+        "First notes:",
+        notes[:10]
+    )
+
+
+
+
+    # ==================================
+    # events
+    # ==================================
 
 
     events=[]
 
 
-    for n in notes:
+
+    for note in notes:
+
 
 
         events.append(
 
             (
 
-            n["start"],
+                note["start"],
 
-            Message(
-                "note_on",
-                note=n["pitch"],
-                velocity=n["velocity"],
-                time=0
-            )
+                Message(
+
+                    "note_on",
+
+                    note=note["pitch"],
+
+                    velocity=note["velocity"],
+
+                    time=0
+
+                )
 
             )
 
@@ -449,14 +492,19 @@ def tokens_to_midi(tokens):
 
             (
 
-            n["end"],
+                note["end"],
 
-            Message(
-                "note_off",
-                note=n["pitch"],
-                velocity=0,
-                time=0
-            )
+                Message(
+
+                    "note_off",
+
+                    note=note["pitch"],
+
+                    velocity=0,
+
+                    time=0
+
+                )
 
             )
 
@@ -465,7 +513,7 @@ def tokens_to_midi(tokens):
 
 
 
-    # chronological order
+    # sort by time
 
     events.sort(
         key=lambda x:x[0]
@@ -476,12 +524,16 @@ def tokens_to_midi(tokens):
     current=0
 
 
+
     for tick,msg in events:
 
 
         msg.time=max(
+
             0,
+
             tick-current
+
         )
 
 
@@ -489,6 +541,7 @@ def tokens_to_midi(tokens):
 
 
         current=tick
+
 
 
 
