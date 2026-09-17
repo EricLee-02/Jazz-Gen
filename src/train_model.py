@@ -118,7 +118,7 @@ criterion=nn.CrossEntropyLoss(ignore_index=-100)
 # ===============================
 # AMP
 # ===============================
-scaler=torch.cuda.amp.GradScaler()
+scaler=torch.amp.GradScaler("cuda")
 
 # ===============================
 # Train
