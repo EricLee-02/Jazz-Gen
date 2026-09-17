@@ -1,5 +1,9 @@
-import json
-from mido import MidiFile, MidiTrack, Message, MetaMessage
+from mido import (
+    MidiFile,
+    MidiTrack,
+    Message,
+    MetaMessage
+)
 
 
 
@@ -7,38 +11,85 @@ TICKS_PER_BEAT = 480
 
 
 
+# ==============================
+# token value
+# ==============================
+
 def token_value(token):
 
-    return token.split("_")[-1]
+    return token.split("_",1)[-1]
 
 
 
-def position_to_tick(position, tatum):
 
-    """
-    POSITION_x-y
+# ==============================
+# Duration
+# ==============================
 
-    x = beat position
-    y = subdivision
+def duration_to_tick(value):
 
-    """
+    mapping={
+
+        "32":60,
+        "16":120,
+        "8":240,
+        "4":480,
+        "2":960,
+        "1":1920,
+        "LONG":1920
+
+    }
+
+    return mapping.get(
+        value,
+        120
+    )
+
+
+
+
+# ==============================
+# Swing position
+# ==============================
+
+def position_to_tick(position):
+
 
     try:
 
-        beat,sub = position.split("-")
+        beat,sub=position.split("-")
 
         beat=int(beat)
         sub=int(sub)
 
 
-        tick = (
-            (beat-1)*480
-            +
-            (sub-1)*120
+
+        base=(beat-1)*TICKS_PER_BEAT
+
+
+
+        # subdivision
+        #
+        # 1  = down beat
+        # 2  = swing off beat
+        # 3
+        # 4  = swing late
+
+
+        subdivision={
+            1:0,
+            2:180,
+            3:240,
+            4:360
+        }
+
+
+
+        return base + subdivision.get(
+            sub,
+            0
         )
 
-
-        return tick
 
 
     except:
@@ -46,6 +97,66 @@ def position_to_tick(position, tatum):
         return 0
 
 
+
+
+
+# ==============================
+# Micro timing
+# ==============================
+
+def apply_micro(tick,micro):
+
+
+    if micro=="MICRO_LATE":
+
+        tick += 45
+
+
+    elif micro=="MICRO_EARLY":
+
+        tick -= 15
+
+
+    return max(
+        tick,
+        0
+    )
+
+
+
+
+
+
+# ==============================
+# Articulation
+# ==============================
+
+def apply_articulation(duration,artic):
+
+
+    if artic=="ARTIC_staccato":
+
+        return int(duration*0.55)
+
+
+    elif artic=="ARTIC_legato":
+
+        return int(duration*1.1)
+
+
+    else:
+
+        return duration
+
+
+
+
+
+
+
+# ==============================
+# Main decoder
+# ==============================
 
 
 def tokens_to_midi(tokens):
@@ -62,14 +173,32 @@ def tokens_to_midi(tokens):
 
 
 
-    current_bar=0
-    current_position=0
+    # tempo
+
+    track.append(
+        MetaMessage(
+            "set_tempo",
+            tempo=500000,
+            time=0
+        )
+    )
+
+
+
+    bar=0
+
+    position="1-1"
 
     velocity=90
+
     duration=120
 
+    micro=None
 
-    notes=[]
+    articulation=None
+
+
+    events=[]
 
 
 
@@ -81,16 +210,13 @@ def tokens_to_midi(tokens):
         # BAR
         # ----------------
 
-        if token.startswith("<BAR"):
-
+        if token.startswith("BAR"):
 
             try:
 
-                current_bar=int(
+                bar=int(
                     token.split("_")[1]
-                    .replace(">","")
                 )
-
 
             except:
 
@@ -99,21 +225,19 @@ def tokens_to_midi(tokens):
 
 
         # ----------------
-        # POSITION
+        # Position
         # ----------------
 
         elif token.startswith(
             "POSITION"
         ):
 
-            current_position=token_value(
-                token
-            )
+            position=token_value(token)
 
 
 
         # ----------------
-        # Velocity
+        # velocity
         # ----------------
 
         elif token.startswith(
@@ -121,45 +245,52 @@ def tokens_to_midi(tokens):
         ):
 
             velocity=int(
-                float(
-                    token_value(token)
-                )
+                token_value(token)
             )
 
 
 
         # ----------------
-        # Duration
+        # duration
         # ----------------
 
         elif token.startswith(
             "DURATION"
         ):
 
-            d=token_value(token)
 
-
-            mapping={
-
-                "32":60,
-                "16":120,
-                "8":240,
-                "4":480,
-                "2":960,
-                "LONG":1920
-
-            }
-
-
-            duration=mapping.get(
-                d,
-                120
+            duration=duration_to_tick(
+                token_value(token)
             )
 
 
 
         # ----------------
-        # Pitch
+        # micro timing
+        # ----------------
+
+        elif token.startswith(
+            "MICRO"
+        ):
+
+            micro=token
+
+
+
+        # ----------------
+        # articulation
+        # ----------------
+
+        elif token.startswith(
+            "ARTIC"
+        ):
+
+            articulation=token
+
+
+
+        # ----------------
+        # pitch
         # ----------------
 
         elif token.startswith(
@@ -168,78 +299,123 @@ def tokens_to_midi(tokens):
 
 
             pitch=int(
-                float(
-                    token_value(token)
-                )
+                token_value(token)
             )
 
 
-            tick = (
-                current_bar*1920
+
+            start=(
+
+                bar*4*TICKS_PER_BEAT
+
                 +
+
                 position_to_tick(
-                    current_position,
-                    None
+                    position
                 )
+
+            )
+
+
+            start=apply_micro(
+                start,
+                micro
             )
 
 
 
-            notes.append(
+            dur=apply_articulation(
+                duration,
+                articulation
+            )
+
+
+
+            events.append(
+
                 {
+                    "type":"on",
+                    "tick":start,
                     "pitch":pitch,
-                    "start":tick,
-                    "duration":duration,
                     "velocity":velocity
                 }
+
+            )
+
+
+            events.append(
+
+                {
+                    "type":"off",
+                    "tick":start+dur,
+                    "pitch":pitch,
+                    "velocity":0
+                }
+
             )
 
 
 
-    # ==========================
-    # remove overlap
-    # ==========================
+            micro=None
 
-    notes=sorted(
-        notes,
-        key=lambda x:x["start"]
+
+
+
+    # ==============================
+    # Sort events
+    # ==============================
+
+    events.sort(
+        key=lambda x:
+        (
+            x["tick"],
+            0 if x["type"]=="off" else 1
+        )
     )
 
 
-    # ==========================
+
+
+    # ==============================
     # Write midi
-    # ==========================
+    # ==============================
+
 
     last_tick=0
 
 
-    for n in notes:
+
+    for e in events:
 
 
-        delta=n["start"]-last_tick
-
-
-        track.append(
-            Message(
-                "note_on",
-                note=n["pitch"],
-                velocity=n["velocity"],
-                time=max(delta,0)
-            )
-        )
+        delta=e["tick"]-last_tick
 
 
         track.append(
+
             Message(
+
+                "note_on"
+                if e["type"]=="on"
+                else
                 "note_off",
-                note=n["pitch"],
-                velocity=0,
-                time=n["duration"]
+
+                note=e["pitch"],
+
+                velocity=e["velocity"],
+
+                time=max(
+                    delta,
+                    0
+                )
+
             )
+
         )
 
 
-        last_tick=n["start"]
+        last_tick=e["tick"]
+
 
 
 
