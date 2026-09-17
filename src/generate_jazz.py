@@ -1,16 +1,27 @@
 import os
 import json
 import torch
+
+
 from .melody_generate_model import JazzGenerationModel
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 from .midi_decoder import tokens_to_midi
-from .config import HARMONY_CHECKPOINT_FILE,MELODY_VOCAB_FILE,OUTPUT_DIR,MELODY_CHECKPOINT_FILE,GENERATION_CHECKPOINT_FILE
+
+
+from .config import (
+    HARMONY_CHECKPOINT_FILE,
+    MELODY_CHECKPOINT_FILE,
+    GENERATION_CHECKPOINT_FILE,
+    MELODY_VOCAB_FILE,
+    OUTPUT_DIR
+)
+
 
 
 # ==================================================
-# Config
+# Device
 # ==================================================
 
 DEVICE=torch.device(
@@ -18,9 +29,6 @@ DEVICE=torch.device(
     if torch.cuda.is_available()
     else "cpu"
 )
-
-
-
 
 
 os.makedirs(
@@ -44,7 +52,7 @@ MIDI_OUTPUT=os.path.join(
 
 
 # ==================================================
-# Load Vocabulary
+# Vocabulary
 # ==================================================
 
 with open(
@@ -66,25 +74,31 @@ id_to_token={
 }
 
 
-BOS_ID=token_to_id["<BOS>"]
 
+BOS_ID=token_to_id["<BOS>"]
 EOS_ID=token_to_id["<EOS>"]
 
 
+
 print(
-    "Vocabulary:",
+    "Vocabulary size:",
     len(token_to_id)
 )
 
 
 
+
 # ==================================================
-# Build Model
+# Build Models
 # ==================================================
 
-print("Loading model...")
+print("Loading models...")
 
 
+
+# ----------------------
+# Harmony Encoder
+# ----------------------
 
 harmony_encoder=HarmonyModel(
     chord_vocab_size=1064,
@@ -98,6 +112,11 @@ harmony_encoder=HarmonyModel(
 )
 
 
+
+# ----------------------
+# Melody Decoder
+# ----------------------
+
 melody_decoder=JazzTransformer(
     vocab_size=len(token_to_id),
     max_seq_len=2048,
@@ -108,6 +127,7 @@ melody_decoder=JazzTransformer(
 )
 
 
+
 model=JazzGenerationModel(
     harmony_encoder,
     melody_decoder
@@ -115,38 +135,51 @@ model=JazzGenerationModel(
 
 
 
-checkpoint=torch.load( HARMONY_CHECKPOINT_FILE,map_location=DEVICE)
+# ==================================================
+# Load checkpoints
+# ==================================================
+
+
+# ---------- Harmony ----------
+
+checkpoint=torch.load(
+    HARMONY_CHECKPOINT_FILE,
+    map_location=DEVICE
+)
+
 
 if "model_state_dict" in checkpoint:
     state=checkpoint["model_state_dict"]
-elif "encoder" in checkpoint:
-    state=checkpoint["encoder"]
 else:
     state=checkpoint
 
 
-melody_decoder.load_state_dict(
+
+harmony_encoder.load_state_dict(
     state,
     strict=False
 )
+
+
+
+print("Harmony checkpoint loaded")
+
+
+
+# ---------- Melody ----------
+
 
 checkpoint=torch.load(
     MELODY_CHECKPOINT_FILE,
     map_location=DEVICE
 )
 
+
 if "model_state_dict" in checkpoint:
-
     state=checkpoint["model_state_dict"]
-
-elif "encoder" in checkpoint:
-
-    state=checkpoint["encoder"]
-
-
 else:
-
     state=checkpoint
+
 
 
 melody_decoder.load_state_dict(
@@ -154,23 +187,30 @@ melody_decoder.load_state_dict(
     strict=False
 )
 
+
+
+print("Melody checkpoint loaded")
+
+
+
+# ---------- Generation ----------
+
+
 checkpoint=torch.load(
     GENERATION_CHECKPOINT_FILE,
     map_location=DEVICE
 )
 
+
+
 if "model_state_dict" in checkpoint:
 
     state=checkpoint["model_state_dict"]
 
-elif "encoder" in checkpoint:
-
-    state=checkpoint["encoder"]
-
-
 else:
 
     state=checkpoint
+
 
 
 model.load_state_dict(
@@ -179,27 +219,31 @@ model.load_state_dict(
 )
 
 
-harmony_encoder = harmony_encoder.to(DEVICE)
+
+print("Generation checkpoint loaded")
+
+
+
+harmony_encoder=harmony_encoder.to(DEVICE)
+melody_decoder=melody_decoder.to(DEVICE)
+model=model.to(DEVICE)
+
+
+
 harmony_encoder.eval()
-
-melody_decoder = melody_decoder.to(DEVICE)
 melody_decoder.eval()
-
-model = model.to(DEVICE)
 model.eval()
 
 
-print("Harmony Encoder loaded")
-
 
 # ==================================================
-# Build Harmony Condition
+# Harmony condition
 # ==================================================
-
-# 用户输入和弦
 
 chords=[
-  "CMaj7","CMin7 F7","BbMaj7"
+    "CMaj7",
+    "CMin7 F7",
+    "BbMaj7"
 ]
 
 
@@ -207,9 +251,13 @@ chords=[
 harmony_builder=HarmonyGenerator()
 
 
-harmony=harmony_builder.build(chords)
+harmony=harmony_builder.build(
+    chords
+)
+
 
 for k in harmony:
+
     harmony[k]=harmony[k].to(DEVICE)
 
 
@@ -218,19 +266,153 @@ print("Harmony prepared")
 
 
 
+
 # ==================================================
-# Sampling Generation
+# Token Constraint
 # ==================================================
+
+
+def clean_generated_tokens(tokens):
+
+    """
+    Melody constraint:
+
+    1. Remove harmony tokens
+    2. One pitch per position
+    3. Prevent bar backward
+    """
+
+
+    cleaned=[]
+
+
+    current_position=None
+    note_generated=False
+
+    last_bar=-1
+
+
+
+    remove_prefix=[
+        "CHORD",
+        "ROOT",
+        "ROMAN",
+        "FUNCTION",
+        "QUALITY",
+        "SCALE"
+    ]
+
+
+
+    for token in tokens:
+
+
+        # remove harmony output
+
+        if any(
+            token.startswith(x)
+            for x in remove_prefix
+        ):
+
+            continue
+
+
+
+        # BAR check
+
+        if token.startswith("BAR"):
+
+
+            try:
+
+                bar=int(
+                    token.split("_")[1]
+                )
+
+
+                if bar < last_bar:
+
+                    continue
+
+
+                last_bar=bar
+
+
+            except:
+
+                pass
+
+
+
+        # POSITION
+
+        if token.startswith(
+            "POSITION"
+        ):
+
+            current_position=token
+            note_generated=False
+
+
+
+        # pitch constraint
+
+        if token.startswith(
+            "PITCH"
+        ):
+
+
+            if note_generated:
+
+                continue
+
+
+            note_generated=True
+
+
+
+        cleaned.append(token)
+
+
+
+    return cleaned
+
+
+
+
+
+# ==================================================
+# Generation
+# ==================================================
+
 
 @torch.no_grad()
-def generate(model,harmony, max_length=1536,temperature=0.9,
-top_k=40):
+def generate(
+        model,
+        harmony,
+        max_length=2048,
+        temperature=0.75,
+        top_k=20
+):
 
 
-    memory=model.harmony_encoder.encode(**harmony)
-    generated=torch.tensor([[BOS_ID]],device=DEVICE)
+    memory=model.harmony_encoder.encode(
+        **harmony
+    )
 
-    for step in range(max_length-1):
+
+
+    generated=torch.tensor(
+        [[BOS_ID]],
+        device=DEVICE
+    )
+
+
+
+    for step in range(
+        max_length-1
+    ):
+
 
         logits=model.melody_decoder(
             generated,
@@ -238,31 +420,64 @@ top_k=40):
         )
 
 
+
         next_logits=logits[:,-1,:]
 
-
-        # temperature
 
         next_logits/=temperature
 
 
 
-        # ======================
-        # Top K sampling
-        # ======================
-
         if top_k:
-            values,indices=torch.topk(next_logits,top_k)
-            probs=torch.softmax(values,dim=-1)
-            sample=torch.multinomial(probs,1)
-            next_token=indices.gather(1,sample)
+
+
+            values,indices=torch.topk(
+                next_logits,
+                top_k
+            )
+
+
+            probs=torch.softmax(
+                values,
+                dim=-1
+            )
+
+
+            sample=torch.multinomial(
+                probs,
+                1
+            )
+
+
+            next_token=indices.gather(
+                1,
+                sample
+            )
 
 
         else:
-            probs=torch.softmax(next_logits, dim=-1)
-            next_token=torch.multinomial(probs,1)
 
-        generated=torch.cat([generated,next_token],dim=1)
+
+            probs=torch.softmax(
+                next_logits,
+                dim=-1
+            )
+
+
+            next_token=torch.multinomial(
+                probs,
+                1
+            )
+
+
+
+        generated=torch.cat(
+            [
+                generated,
+                next_token
+            ],
+            dim=1
+        )
 
 
 
@@ -276,26 +491,50 @@ top_k=40):
 
 
 
+
 # ==================================================
 # Generate
 # ==================================================
 
+
 print("Generating...")
 
 
-
-generated_ids=generate(model,harmony,max_length=1536,
-temperature=0.9,top_k=40)
-
-
-
-tokens=[id_to_token[i]for i in generated_ids]
-
-
-print("Generated tokens:",len(tokens))
+generated_ids=generate(
+    model,
+    harmony,
+    max_length=2048,
+    temperature=0.75,
+    top_k=20
+)
 
 
-# print(tokens[:80])
+
+tokens=[
+    id_to_token[i]
+    for i in generated_ids
+]
+
+
+
+print(
+    "Before cleaning:",
+    len(tokens)
+)
+
+
+
+tokens=clean_generated_tokens(
+    tokens
+)
+
+
+
+print(
+    "After cleaning:",
+    len(tokens)
+)
+
 
 
 
@@ -303,10 +542,27 @@ print("Generated tokens:",len(tokens))
 # Save tokens
 # ==================================================
 
-with open(TOKEN_OUTPUT,"w",encoding="utf8") as f:
-    json.dump(tokens,f,indent=2,ensure_ascii=False)
+with open(
+    TOKEN_OUTPUT,
+    "w",
+    encoding="utf8"
+) as f:
 
-print("Saved tokens:",TOKEN_OUTPUT)
+
+    json.dump(
+        tokens,
+        f,
+        indent=2,
+        ensure_ascii=False
+    )
+
+
+
+print(
+    "Saved tokens:",
+    TOKEN_OUTPUT
+)
+
 
 
 
@@ -314,6 +570,18 @@ print("Saved tokens:",TOKEN_OUTPUT)
 # MIDI
 # ==================================================
 
-midi=tokens_to_midi(tokens)
-midi.save(MIDI_OUTPUT)
-print("Saved MIDI:",MIDI_OUTPUT)
+midi=tokens_to_midi(
+    tokens
+)
+
+
+midi.save(
+    MIDI_OUTPUT
+)
+
+
+
+print(
+    "Saved MIDI:",
+    MIDI_OUTPUT
+)
