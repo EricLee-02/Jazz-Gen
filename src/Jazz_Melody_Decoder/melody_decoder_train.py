@@ -176,7 +176,7 @@ def main():
 
     patience_counter = 0
     for epoch in range(start_epoch,EPOCHS+1):
-        train_loss=train_one_epoch(epoch,scaler)
+        train_loss=train_one_epoch(epoch)
         val_loss=validate()
         scheduler.step()
         print("="*50)
