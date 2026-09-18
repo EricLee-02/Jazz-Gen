@@ -38,8 +38,18 @@ def load_checkpoint(module, path, label="Model"):
     state = checkpoint.get("model_state_dict", checkpoint)
     if not isinstance(state, dict):
         raise ValueError(f"{label}: expected a state_dict or model_state_dict checkpoint.")
+    if "model_state_dict" in checkpoint:
+        state = checkpoint["model_state_dict"]
+    elif "encoder" in checkpoint and "head" in checkpoint:
+        state = checkpoint["encoder"]
+    elif all(isinstance(v, torch.Tensor) for v in checkpoint.values()):
+        state = checkpoint  # bare state_dict
+    else:
+        raise ValueError(f"{label}: no model state dict found in {path}; keys: {list(checkpoint)}")
     if not set(dict(module.named_parameters())).intersection(state):
         raise RuntimeError(f"{label}: no parameter names match this model. Check the file/prefixes.")
+    # if not set(dict(module.named_parameters())).intersection(state):
+    #     raise RuntimeError(f"{label}: no parameter names match this model. Check the file/prefixes.")
     # Keep the original partial-load behavior, but make mismatches visible.
     result = module.load_state_dict(state, strict=False)
     print(f"{label} checkpoint loaded: {path}")
