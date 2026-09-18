@@ -33,7 +33,7 @@ START_BAR = None                # Preserve model's choice; set 1 to start at BAR
 MAX_BAR = None                  # Optional upper bound in YOUR melody bar numbering.
 
 
-def load_checkpoint(module, path, label):
+def load_checkpoint(module, path, label="Model"):
     checkpoint = torch.load(path, map_location="cpu")
     state = checkpoint.get("model_state_dict", checkpoint)
     if not isinstance(state, dict):
