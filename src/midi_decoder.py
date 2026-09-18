@@ -285,7 +285,7 @@ def render_notes(notes, *, ticks_per_beat=TICKS_PER_BEAT, beats_per_bar=4,
 
 
 def tokens_to_midi(tokens, *, tempo_bpm=120, ticks_per_beat=TICKS_PER_BEAT,
-                   beats_per_bar=4, bar_base=0, subdivisions_per_beat=8,
+                   beats_per_bar=4, bar_base=0, subdivisions_per_beat=16,
                    swing_ratio=1.6, feel_ratio=0.0, micro_ratio=0.03,
                    monophonic=True):
     """例：tokens_to_midi(tokens, swing_ratio=1.6, feel_ratio=0.03)。
