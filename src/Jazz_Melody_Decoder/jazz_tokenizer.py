@@ -74,10 +74,10 @@ class JazzTokenizer:
 
     def micro_token(self,micro):
 
-        if micro < -0.05:
+        if micro < -20:
             return "MICRO_EARLY"
 
-        elif micro > 0.05:
+        elif micro > 20:
             return "MICRO_LATE"
 
         else:
@@ -90,7 +90,6 @@ class JazzTokenizer:
     # ===============================
 
     def metadata_tokens(self,metadata):
-
         tokens=[]
 
         if not metadata:
@@ -102,7 +101,7 @@ class JazzTokenizer:
             "mode",
             "scale",
             "style",
-            "tempo",
+            "avgtempo",
             "swing_ratio"
         ]
 
@@ -135,19 +134,22 @@ class JazzTokenizer:
             f"BAR_{note.get('bar',0)}"
         )
 
+        tokens.append(
+            f"PERIOD_{note.get('period',4)}"
+        )
+
 
         tokens.append(
             f"BEAT_{note.get('beat',0)}"
         )
 
+        tokens.append(
+        f"DIVISION_{note.get('division',1)}"
+    )
+
 
         tokens.append(
             f"TATUM_{note.get('tatum',0)}"
-        )
-
-
-        tokens.append(
-            f"POSITION_{note.get('position','0')}"
         )
 
 
@@ -274,8 +276,6 @@ class JazzTokenizer:
     def build_vocab(self,json_files):
 
         counter=Counter()
-
-
         for file in json_files:
 
             with open(
@@ -421,27 +421,15 @@ class JazzTokenizer:
         )
 
 
-        with open(
-            path/"vocabulary.json",
-            "w",
-            encoding="utf8"
-        ) as f:
-
+        with open(path/"vocabulary.json","w",encoding="utf8") as f:
 
             json.dump(
-                {
-                "token_to_id":self.token_to_id,
-                "id_to_token":self.id_to_token
-                },
+                {"token_to_id":self.token_to_id,"id_to_token":self.id_to_token},
                 f,
                 indent=2,
                 ensure_ascii=False
             )
-
-
-        print(
-            "Vocabulary saved"
-        )
+        print("Vocabulary saved")
 
 
 
@@ -476,3 +464,29 @@ if __name__=="__main__":
 
 
     print("Tokenizer finished")
+
+
+from pathlib import Path
+import json
+import numpy as np
+
+
+bars=[]
+
+for file in Path(Token_Output_Dir).glob("*.json"):
+
+    data=json.load(open(file))
+
+    tokens=data["tokens"]
+
+    count=0
+
+    for t in tokens[:512]:
+        if t.startswith("BAR_"):
+            count+=1
+
+    bars.append(count)
+
+
+print(np.mean(bars))
+print(np.median(bars))

@@ -294,6 +294,9 @@ class Preprocess:
         aligned_df["style"] = metadata.get("style", "Unknown")
         aligned_df["tempo"] = metadata.get("avgtempo", 120)
         aligned_df["bar"] = melody_df["bar"].values
+        min_bar = aligned_df["bar"].min()
+        if min_bar < 0 :
+            aligned_df["bar"] -= min_bar
         aligned_df["beat"] = melody_df["beat"].values
         aligned_df = aligned_df.drop(columns=["bar_x","beat_x","bar_y","beat_y"],errors="ignore")
  
@@ -301,6 +304,9 @@ class Preprocess:
         melody_records = aligned_df.to_dict(orient="records")
         print(aligned_df.columns)
         print(aligned_df.iloc[0])
+        min_bar = beats_df["bar"].min()
+        if min_bar < 0:
+            beats_df["bar"] -= min_bar
         beat_records = (beats_df.to_dict(orient="records"))
         melody_records = (self.features.add_velocity(melody_records,velocity_map))
         melody_records = (self.features.add_articulation(melody_records))

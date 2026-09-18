@@ -43,169 +43,80 @@ class JazzDataset(Dataset):
 
 
         self.token_to_id=vocab["token_to_id"]
-
-
         self.pad_id=self.token_to_id["<PAD>"]
-
         self.bos_id=self.token_to_id["<BOS>"]
-
         self.eos_id=self.token_to_id["<EOS>"]
-
         self.unk_id=self.token_to_id["<UNK>"]
-
-
-
         self.feature=JazzFeatures()
-
-
-
         self.data=[]
 
-
-        files=list(
-            Path(solo_dir).glob("*.json")
-        )
-
-
-        print(
-            "Total Songs:",
-            len(files)
-        )
-
-
+        files=list(Path(solo_dir).glob("*.json"))
+        print( "Total Songs:",len(files))
         random.seed(seed)
-
         random.shuffle(files)
-
-
-
-        split_idx=int(
-            len(files)*train_ratio
-        )
-
-
-
+        split_idx=int(len(files)*train_ratio)
         if split=="train":
-
             files=files[:split_idx]
-
         else:
-
             files=files[split_idx:]
 
 
 
-        print(
-            split,
-            "songs:",
-            len(files)
-        )
+        print(split,"songs:",len(files))
 
 
 
         # =====================
         # Load songs
         # =====================
-
-
         for file in files:
-
-
             try:
-
-                with open(
-                    file,
-                    "r",
-                    encoding="utf-8"
-                ) as f:
-
+                with open(file, "r",encoding="utf-8") as f:
                     song=json.load(f)
-
-
-
                 tokens=song["tokens"]
-
-
-
-                # -----------------
+                avg_tempo = self.extract_tempo(tokens)
+                # ---------------
                 # Harmony
                 # -----------------
-
-                harmony=self.extract_harmony(
-                    tokens
-                )
-
-
-
+                harmony=self.extract_harmony(tokens)
                 # -----------------
                 # Melody tokens
                 # -----------------
-
                 ids=[]
-
-
                 for token in tokens:
-
-
-                    ids.append(
-                        self.token_to_id.get(
-                            token,
-                            self.unk_id
-                        )
-                    )
-
-
-
-                ids=[
-                    self.bos_id
-                ] + ids + [
-                    self.eos_id
-                ]
-
-
-
+                    ids.append(self.token_to_id.get(token,self.unk_id))
+                if ids[0] != self.bos_id:
+                    ids = [self.bos_id] + ids
+                if ids[-1] != self.eos_id:
+                    ids = ids + [self.eos_id]
                 # -----------------
                 # sequence split
                 # -----------------
-
-                for start in range(
-                    0,
-                    len(ids)-seq_length,
-                    stride
-                ):
-
-
-                    chunk=ids[
-                        start:
-                        start+seq_length
-                    ]
-
-
-
+                for start in range( 0,len(ids),stride):
+                    chunk=ids[start:start+seq_length]
+                    if len(chunk) < 128:
+                        continue
                     self.data.append(
                         {
                             "ids":chunk,
-
-                            "harmony":harmony
+                            "harmony":harmony,
+                            "tempo": avg_tempo
                         }
                     )
 
-
-
             except Exception as e:
-
-                print(
-                    "Error:",
-                    file,
-                    e
-                )
+                print("Error:",file,e)
+        print("Loaded sequences:",len(self.data))
 
 
 
-        print(
-            "Loaded sequences:",
-            len(self.data)
-        )
+
+
+    def extract_tempo(self, tokens):
+        for token in tokens:
+            if token.startswith("AVGTEMPO_"):
+                return float(token.replace("AVGTEMPO_",""))
+        return 120
 
 
 
@@ -223,8 +134,8 @@ class JazzDataset(Dataset):
         }
 
         for token in tokens:
-            if token.startswith("CHORD_"):
-                chord=token.replace( "CHORD_", "")
+            if token.startswith("Chord_"):
+                chord=token.replace( "Chord_", "")
                 feature=self.feature.analyze_chord( chord)
                 feature["function_id"] = function_map.get(feature["function"],0)
                 harmony.append(feature)
@@ -357,58 +268,23 @@ class JazzDataset(Dataset):
 
 
 
-    def __getitem__(
-        self,
-        index
-    ):
-
-
+    def __getitem__(self,index):
         item=self.data[index]
-
-
         ids=item["ids"]
-
-
+        tempo = torch.tensor(item["tempo"],dtype=torch.float32)
 
         if len(ids)<self.seq_length:
-
             ids += [
                 self.pad_id
             ]*(self.seq_length-len(ids))
-
-
-
         else:
-
             ids=ids[:self.seq_length]
-
-
-
-        input_ids=torch.tensor(
-            ids[:-1],
-            dtype=torch.long
-        )
-
-
-        labels=torch.tensor(
-            ids[1:],
-            dtype=torch.long
-        )
-
-
-
-        harmony=self.process_harmony(
-            item["harmony"]
-        )
-
-
-
+        input_ids=torch.tensor(ids[:-1],dtype=torch.long)
+        labels=torch.tensor(ids[1:],dtype=torch.long)
+        harmony=self.process_harmony(item["harmony"])
         return {
-
             "input_ids":input_ids,
-
             "labels":labels,
-
-            "harmony":harmony
-
-        }
+            "harmony":harmony,
+            "tempo": tempo
+            }
