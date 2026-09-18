@@ -56,40 +56,19 @@ def position_to_tick(position):
 
 
     try:
-
-        beat,sub=position.split("-")
-
-        beat=int(beat)
-        sub=int(sub)
-
-
-
-        base=(beat-1)*TICKS_PER_BEAT
-
-
-
-        # subdivision
-        #
-        # 1  = down beat
-        # 2  = swing off beat
-        # 3
-        # 4  = swing late
-
-
-        subdivision={
-            1:0,
-            2:180,
-            3:240,
-            4:360
-        }
-
-
-
-        return base + subdivision.get(
-            sub,
-            0
-        )
-
+        beat = int(beat)
+        tatum = int(tatum)
+        tick = (beat-1)*480
+        if tatum == 1:
+            sub = 0
+        elif tatum == 2:
+            sub = 240
+        elif tatum == 3:
+            sub = 320
+        else:
+            sub = 360
+        tick +=sub
+        return tick
 
 
     except:
@@ -105,22 +84,11 @@ def position_to_tick(position):
 # ==============================
 
 def apply_micro(tick,micro):
-
-
     if micro=="MICRO_LATE":
-
-        tick += 45
-
-
+        tick += 20
     elif micro=="MICRO_EARLY":
-
-        tick -= 15
-
-
-    return max(
-        tick,
-        0
-    )
+        tick -= 10
+    return max(tick,0)
 
 
 
@@ -136,7 +104,7 @@ def apply_articulation(duration,artic):
 
     if artic=="ARTIC_staccato":
 
-        return int(duration*0.55)
+        return int(duration*0.85)
 
 
     elif artic=="ARTIC_legato":
@@ -196,6 +164,8 @@ def tokens_to_midi(tokens):
     micro=None
 
     articulation=None
+    current_beat = 1
+    current_tatum = 1
 
 
     events=[]
@@ -221,6 +191,12 @@ def tokens_to_midi(tokens):
             except:
 
                 pass
+
+        elif token.startswith("BEAT"):
+            current_beat = int(token_value(token))
+        
+        elif token.startswith("TATUM"):
+            current_tatum = int(token_value(token))
 
 
 
@@ -304,17 +280,7 @@ def tokens_to_midi(tokens):
 
 
 
-            start=(
-
-                bar*4*TICKS_PER_BEAT
-
-                +
-
-                position_to_tick(
-                    position
-                )
-
-            )
+            start=(bar*4*TICKS_PER_BEAT+position_to_tick(current_beat,current_tatum,position))
 
 
             start=apply_micro(
