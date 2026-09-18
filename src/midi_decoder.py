@@ -80,7 +80,7 @@ def swing_fraction(fraction, swing_ratio=1.6):
     return split + 2.0 * (fraction - 0.5) * (1.0 - split)
 
 
-def position_to_tick(position, subdivisions_per_beat=4, swing_ratio=1.6,
+def position_to_tick(position, subdivisions_per_beat=8, swing_ratio=1.6,
                      ticks_per_beat=TICKS_PER_BEAT):
     """POSITION -> 小节内 tick；此辅助函数使用固定细分数和 swing 比例。"""
     beat, tatum = map(int, position.split("-"))
