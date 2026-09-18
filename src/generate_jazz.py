@@ -75,10 +75,10 @@ def main():
         d_model=512, num_heads=8, num_layers=8, dropout=0.1,
     )
     model = JazzGenerationModel(harmony_encoder, melody_decoder)
-    load_checkpoint(harmony_encoder, HARMONY_CHECKPOINT_FILE, "Harmony")
-    load_checkpoint(melody_decoder, MELODY_CHECKPOINT_FILE, "Melody")
+    load_checkpoint(harmony_encoder, HARMONY_CHECKPOINT_FILE,)
+    load_checkpoint(melody_decoder, MELODY_CHECKPOINT_FILE)
     # Matching encoder/decoder keys in this final checkpoint override the above.
-    load_checkpoint(model, GENERATION_CHECKPOINT_FILE, "Generation")
+    load_checkpoint(model, GENERATION_CHECKPOINT_FILE)
     model = model.to(device)
     model.eval()
 
