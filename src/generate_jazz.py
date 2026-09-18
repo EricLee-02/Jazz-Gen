@@ -229,7 +229,6 @@ melody_decoder=melody_decoder.to(DEVICE)
 model=model.to(DEVICE)
 
 
-
 harmony_encoder.eval()
 melody_decoder.eval()
 model.eval()
