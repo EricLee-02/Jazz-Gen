@@ -9,7 +9,6 @@ import json
 import os
 import torch
 
-
 from .melody_generate_model import JazzGenerationModel, audit_melody_tokens
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
@@ -390,7 +389,7 @@ def main():
 
         eos_id=eos_id,
 
-        max_length=get_max_length(bars),
+        max_length=get_max_length(bars)-1,
 
         temperature=TEMPERATURE,
 

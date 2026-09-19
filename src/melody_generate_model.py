@@ -504,7 +504,8 @@ class JazzGenerationModel(nn.Module):
             if not allowed:
                 stop_reason = "no_future_position"
                 break
-            logits = self.melody_decoder(generated, memory)
+            decoder_input = generated[:,-self.melody_decoder.max_seq_len]
+            logits = self.melody_decoder(decoder_input, memory)
             if logits.ndim != 3 or logits.size(0) != 1:
                 raise ValueError("generate expects decoder logits shaped [1, length, vocab].")
             # Equivalent to setting every illegal token's logit to -inf.
