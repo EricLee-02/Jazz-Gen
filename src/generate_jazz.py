@@ -535,12 +535,10 @@ def main():
 
 
 
-    midi=tokens_to_midi(tokens)
+    midi=tokens_to_midi(midi_tokens)
 
 
-    midi.save(
-        midi_output
-    )
+    midi.save(midi_output)
 
 
 
