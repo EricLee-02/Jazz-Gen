@@ -33,11 +33,11 @@ from .config import (
 # ===============================
 
 
-TEMPERATURE = 0.75
+TEMPERATURE = 0.95
 
-TOP_K = 20
+TOP_K = 50
 
-SEED = 42
+SEED = None
 
 BEATS_PER_BAR = None
 
