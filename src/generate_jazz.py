@@ -20,6 +20,10 @@ from .config import (
     GENERATION_CHECKPOINT_FILE,
     MELODY_VOCAB_FILE,
     OUTPUT_DIR,
+    TOKENS_PER_BAR,
+    GENERATE_32_BAR_LENGTH,
+    GENERATE_48_BAR_LENGTH,
+    GENERATE_64_BAR_LENGTH
 )
 
 
@@ -58,6 +62,32 @@ def load_checkpoint(module, path, label="Model"):
     if result.unexpected_keys:
         print(f"  WARNING unexpected keys ({len(result.unexpected_keys)}): {result.unexpected_keys}")
 
+def build_prompt(token_to_id, key, tempo):
+    key_token = f"KEY_{key}"
+    tempo_token = None
+    candidates = [
+        f"AVGTEMPO_{tempo}",
+        F"AVGTEMPO{float(tempo):.1f}"
+    ]
+    for t in candidates:
+        if t in token_to_id:
+            tempo_token = t
+            break
+    if tempo_token is None:
+        raise ValueError(f"Tempo token not foune: {tempo}")
+    tokens = [ "<BOS>",f"KEY_{key}",f"AVGTEMPO_{tempo}"]
+    ids = [token_to_id[t] for t in tokens]
+    return torch.tensor([ids],dtype=torch.long)
+
+def get_max_length(bars):
+    if bars == 32:
+        return GENERATE_32_BAR_LENGTH
+    if bars == 48:
+        return GENERATE_48_BAR_LENGTH
+    if bars == 64:
+        return GENERATE_64_BAR_LENGTH
+    else:
+        return bars * TOKENS_PER_BAR
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,7 +118,7 @@ def main():
     load_checkpoint(harmony_encoder, HARMONY_CHECKPOINT_FILE)
     load_checkpoint(melody_decoder, MELODY_CHECKPOINT_FILE)
     # Matching encoder/decoder keys in this final checkpoint override the above.
-    load_checkpoint(model, GENERATION_CHECKPOINT_FILE)
+    # load_checkpoint(model, GENERATION_CHECKPOINT_FILE)
     model = model.to(device)
     model.eval()
 
@@ -100,17 +130,21 @@ def main():
         "CMaj7", "CMin7 F7", "BbMaj7", "BbMin7 Eb7",
         "AbMaj7", "DMin7 G7#9", "CMaj7", "CMaj7",
     ]
+   
+    bars = 32
+    key = "BbMaj"
+    tempo = 120.1
+    prompt  = build_prompt(token_to_id,key,tempo)
     harmony = HarmonyGenerator().build(chords)
     harmony = {k: value.to(device) for k, value in harmony.items()}
     print("Harmony prepared")
     print("Generating...")
 
+    
+
     # Only one generation loop: the method in melody_generate_model.py.
     generated, info = model.generate(
-        harmony, bos_id=bos_id, eos_id=eos_id, max_length=MAX_LENGTH,
-        temperature=TEMPERATURE, top_k=TOP_K, token_to_id=token_to_id,
-        beats_per_bar=BEATS_PER_BAR, start_bar=START_BAR, max_bar=MAX_BAR,
-        seed=SEED, return_info=True,
+        harmony,prompt_ids=prompt.tp(device), bos_id=bos_id, eos_id=eos_id, max_length=get_max_length(bars),temperature=TEMPERATURE, top_k=TOP_K, token_to_id=token_to_id,beats_per_bar=BEATS_PER_BAR, start_bar=START_BAR, max_bar=bars-1,seed=SEED, return_info=True,
     )
     tokens = [id_to_token[i] for i in generated[0].cpu().tolist()]
     # No token-by-token deletion after generation: preserve event boundaries.

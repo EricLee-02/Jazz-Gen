@@ -182,8 +182,7 @@ class HarmonyGenerator:
 
             "input_ids":
 
-            torch.tensor(
-                input_ids,
+            torch.tensor(input_ids,
                 dtype=torch.long,
                 device=self.device
             ).unsqueeze(0),

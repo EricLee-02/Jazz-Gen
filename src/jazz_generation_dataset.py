@@ -7,242 +7,1102 @@ from torch.utils.data import Dataset
 from .jazz_features import JazzFeatures
 
 
-
 class JazzGenerationDataset(Dataset):
 
+    def __init__(
+        self,
+        solo_dir,
+        vocab_file,
+        seq_length=512,
+        max_harmony_len=128,
+        stride=256
+    ):
 
-    def __init__(self,solo_dir,vocab_file,seq_length=512,max_harmony_len=128,stride=256):
         self.seq_length = seq_length
         self.max_harmony_len = max_harmony_len
         self.stride = stride
 
+        self.features = JazzFeatures()
+
+        # ==================================================
+        # New Melody Note Grammar
+        # POSITION / SUBTATUM are intentionally excluded
+        # ==================================================
+
+        self.required_note_prefixes = (
+            "BAR_",
+            "PERIOD_",
+            "BEAT_",
+            "DIVISION_",
+            "TATUM_",
+            "PITCH_",
+            "DURATION_",
+            "VELOCITY_",
+        )
+
+        self.optional_note_prefixes = (
+            "ARTIC_",
+            "MICRO_",
+        )
+
+        self.note_prefixes = (
+            self.required_note_prefixes
+            + self.optional_note_prefixes
+        )
 
         # ==========================
         # Load Melody Vocabulary
         # ==========================
 
-        with open(vocab_file,"r",encoding="utf8") as f:
-            vocab=json.load(f)
-        self.token_to_id=vocab["token_to_id"]
-        self.id_to_token={int(k):v for k,v in vocab["id_to_token"].items()}
+        with open(
+            vocab_file,
+            "r",
+            encoding="utf8"
+        ) as f:
 
-        self.pad_id=self.token_to_id["<PAD>"]
-        self.bos_id=self.token_to_id["<BOS>"]
-        self.eos_id=self.token_to_id["<EOS>"]
-        self.unk_id=self.token_to_id["<UNK>"]
+            vocab = json.load(f)
+
+        self.token_to_id = vocab["token_to_id"]
+
+        self.id_to_token = {
+            int(k): v
+            for k, v in vocab["id_to_token"].items()
+        }
+
+        self.pad_id = self.token_to_id["<PAD>"]
+        self.bos_id = self.token_to_id["<BOS>"]
+        self.eos_id = self.token_to_id["<EOS>"]
+        self.unk_id = self.token_to_id["<UNK>"]
 
         # ==========================
         # Load Solo Files
         # ==========================
 
-        self.files=list(Path(solo_dir).glob("*.json"))
+        self.files = sorted(
+            Path(solo_dir).glob("*.json")
+        )
+
         self.samples = []
+
+        skipped_prompt = 0
+        skipped_no_notes = 0
+        skipped_no_chords = 0
+
         for file in self.files:
-            with open(file,"r") as f:
+
+            with open(
+                file,
+                "r",
+                encoding="utf8"
+            ) as f:
+
                 data = json.load(f)
+
             tokens = data["tokens"]
-            for i in range(0,len(tokens),self.stride):
-                segment = tokens[i:i+self.seq_length]
-                if len(segment)>50:
-                    self.samples.append({
-                        "tokens":segment
-                    })
-        print("Solo files:",len(self.files))
 
+            # --------------------------
+            # Global conditions
+            # --------------------------
 
+            key_token, tempo_token = (
+                self.extract_global_prompt(tokens)
+            )
 
-    # ==================================
+            # We want every training chunk to have
+            # exactly the same global condition format
+            # as generation:
+            #
+            # <BOS>
+            # KEY_xxx
+            # AVGTEMPO_xxx
+            #
+            if (
+                key_token is None
+                or tempo_token is None
+            ):
+                skipped_prompt += 1
+                continue
+
+            # --------------------------
+            # Sliding windows
+            # --------------------------
+
+            for start in range(
+                0,
+                len(tokens),
+                self.stride
+            ):
+
+                segment = tokens[
+                    start:start + self.seq_length
+                ]
+
+                if len(segment) <= 50:
+                    continue
+
+                # ==================================
+                # Keep complete melody notes only
+                # ==================================
+
+                melody_tokens = (
+                    self.extract_complete_note_tokens(
+                        segment
+                    )
+                )
+
+                if not melody_tokens:
+                    skipped_no_notes += 1
+                    continue
+
+                # ==================================
+                # Harmony aligned to this chunk
+                # ==================================
+
+                chords = self.extract_segment_chords(
+                    full_tokens=tokens,
+                    start=start,
+                    segment=segment
+                )
+
+                if not chords:
+                    skipped_no_chords += 1
+                    continue
+
+                # Only a chunk containing the real
+                # end of the song should learn EOS
+                is_last = (
+                    "<EOS>" in segment
+                    or
+                    start + self.seq_length
+                    >= len(tokens)
+                )
+
+                self.samples.append({
+
+                    "melody_tokens":
+                        melody_tokens,
+
+                    "chords":
+                        chords,
+
+                    "key_token":
+                        key_token,
+
+                    "tempo_token":
+                        tempo_token,
+
+                    "is_last":
+                        is_last,
+
+                })
+
+        print(
+            "Solo files:",
+            len(self.files)
+        )
+
+        print(
+            "Generation samples:",
+            len(self.samples)
+        )
+
+        print(
+            "Skipped missing key/tempo:",
+            skipped_prompt
+        )
+
+        print(
+            "Skipped no complete notes:",
+            skipped_no_notes
+        )
+
+        print(
+            "Skipped no harmony:",
+            skipped_no_chords
+        )
+
+    # ==================================================
     # Dataset Length
-    # ==================================
+    # ==================================================
 
     def __len__(self):
+
         return len(self.samples)
 
+    # ==================================================
+    # Extract Global Prompt
+    # ==================================================
 
-    # ==================================
+    def extract_global_prompt(
+        self,
+        tokens
+    ):
+
+        key_token = None
+        tempo_token = None
+
+        for token in tokens:
+
+            if (
+                token.startswith("KEY_")
+                and key_token is None
+            ):
+
+                key_token = token
+
+            elif (
+                token.startswith("AVGTEMPO_")
+                and tempo_token is None
+            ):
+
+                tempo_token = token
+
+            if (
+                key_token is not None
+                and tempo_token is not None
+            ):
+                break
+
+        return (
+            key_token,
+            tempo_token
+        )
+
+    # ==================================================
+    # Extract Complete Melody Notes
+    #
+    # New note format:
+    #
+    # BAR
+    # PERIOD
+    # BEAT
+    # DIVISION
+    # TATUM
+    # PITCH
+    # DURATION
+    # VELOCITY
+    # [ARTIC]
+    # [MICRO]
+    #
+    # POSITION and SUBTATUM are ignored.
+    # Harmony/header tokens are also ignored.
+    # ==================================================
+
+    def extract_complete_note_tokens(
+        self,
+        tokens
+    ):
+
+        complete_tokens = []
+
+        current_note = None
+
+        for token in tokens:
+
+            # Every note begins with BAR
+            if token.startswith("BAR_"):
+
+                # Save previous note
+                if (
+                    current_note is not None
+                    and self.is_complete_note(
+                        current_note
+                    )
+                ):
+
+                    complete_tokens.extend(
+                        current_note
+                    )
+
+                current_note = [token]
+
+                continue
+
+            # Ignore everything before first BAR
+            if current_note is None:
+                continue
+
+            # Only retain tokens belonging to
+            # the new melody grammar
+            if token.startswith(
+                self.note_prefixes
+            ):
+
+                current_note.append(
+                    token
+                )
+
+        # Final note
+        if (
+            current_note is not None
+            and self.is_complete_note(
+                current_note
+            )
+        ):
+
+            complete_tokens.extend(
+                current_note
+            )
+
+        return complete_tokens
+
+    # ==================================================
+    # Check Complete Note
+    # ==================================================
+
+    def is_complete_note(
+        self,
+        note_tokens
+    ):
+
+        for prefix in (
+            self.required_note_prefixes
+        ):
+
+            if not any(
+                token.startswith(prefix)
+                for token in note_tokens
+            ):
+
+                return False
+
+        return True
+
+    # ==================================================
     # Chord Normalize
-    # ==================================
+    # ==================================================
 
-    def normalize_chord(self,chord):
+    def normalize_chord(
+        self,
+        chord
+    ):
 
         """
         Convert WJazzD chord notation
-        to JazzFeatures notation
-        Examples:
-        Cj7->C^7
-        Cm7->C-7
-        Calt-> C7b9#5
+        to JazzFeatures notation.
 
+        Examples:
+
+        Cj7  -> C^7
+        Cm7  -> C-7
+        Calt -> C7b9#5
         """
 
-        if chord is None:
+        if (
+            chord is None
+            or chord == ""
+        ):
+
             return None
-        chord=chord.strip()
+
+        chord = chord.strip()
 
         # ----------------------
         # Major
         # ----------------------
-        chord=chord.replace("j","^")
-        chord=chord.replace("∆","^")
+
+        chord = chord.replace(
+            "j",
+            "^"
+        )
+
+        chord = chord.replace(
+            "∆",
+            "^"
+        )
+
         # ----------------------
         # Minor
         # ----------------------
 
-        if len(chord)>1:
-            root_end=1
-            if chord[1] in ["b","#"]:
-                root_end=2
-            root=chord[:root_end]
-            rest=chord[root_end:]
+        if len(chord) > 1:
+
+            root_end = 1
+
+            if chord[1] in [
+                "b",
+                "#"
+            ]:
+
+                root_end = 2
+
+            root = chord[
+                :root_end
+            ]
+
+            rest = chord[
+                root_end:
+            ]
 
             if rest.startswith("m"):
-                rest=rest.replace("m","-",1)
-                chord=root+rest
+
+                rest = rest.replace(
+                    "m",
+                    "-",
+                    1
+                )
+
+            chord = root + rest
+
         # ----------------------
         # Alter chords
         # ----------------------
 
-        replacements={
-            "alt":"b9#5",
-            "ø":"-7b5",
+        replacements = {
+
+            "alt":
+                "b9#5",
+
+            "ø":
+                "-7b5",
+
         }
 
-        for old,new in replacements.items():
-            chord=chord.replace(old,new)
+        for old, new in (
+            replacements.items()
+        ):
+
+            chord = chord.replace(
+                old,
+                new
+            )
+
         return chord
 
+    # ==================================================
+    # Extract Harmony for Current Segment
+    # ==================================================
 
-    # ==================================
-    # Extract chord token
-    # ==================================
+    def extract_segment_chords(
+        self,
+        full_tokens,
+        start,
+        segment
+    ):
 
-    def extract_chords(self,tokens):
-        chords=[]
-        for token in tokens:
-            if token.startswith("CHORD_"):
-                chord=token.replace("CHORD_","")
-                chord=self.normalize_chord(chord)
-                chords.append(chord)
+        chords = []
+
+        # ==================================
+        # Find active chord before segment
+        # ==================================
+
+        active_chord = None
+
+        for token in full_tokens[:start]:
+
+            if token.startswith(
+                "Chord_"
+            ):
+
+                active_chord = (
+                    token.replace(
+                        "Chord_",
+                        "",
+                        1
+                    )
+                )
+
+        if active_chord is not None:
+
+            active_chord = (
+                self.normalize_chord(
+                    active_chord
+                )
+            )
+
+            if active_chord:
+
+                chords.append(
+                    active_chord
+                )
+
+        # ==================================
+        # Chord changes inside segment
+        # ==================================
+
+        for token in segment:
+
+            if token.startswith(
+                "Chord_"
+            ):
+
+                chord = token.replace(
+                    "Chord_",
+                    "",
+                    1
+                )
+
+                chord = (
+                    self.normalize_chord(
+                        chord
+                    )
+                )
+
+                if not chord:
+                    continue
+
+                # Avoid consecutive duplicates
+                if (
+                    not chords
+                    or chord != chords[-1]
+                ):
+
+                    chords.append(
+                        chord
+                    )
+
         return chords
 
-    # ==================================
-    # Chord -> Harmony Feature
-    # ==================================
+    # ==================================================
+    # Chord -> Harmony Features
+    # ==================================================
 
-    def build_harmony(self,chords):
-        input_ids=[]
-        scale_vectors=[]
-        chord_tones=[]
-        guide_tones=[]
-        tensions=[]
-        available_tensions=[]
-        avoids=[]
+    def build_harmony(
+        self,
+        chords
+    ):
+
+        input_ids = []
+
+        scale_vectors = []
+        chord_tones = []
+        guide_tones = []
+        tensions = []
+        available_tensions = []
+        avoids = []
+
+        function_map = {
+
+            "Tonic":
+                0,
+
+            "SubDominant":
+                1,
+
+            "Dominant":
+                2,
+
+        }
+
         for chord in chords:
+
             try:
-                feature=JazzFeatures.analyze_chord(chord)
+
+                feature = (
+                    self.features.analyze_chord(
+                        chord
+                    )
+                )
+
             except Exception:
+
                 continue
 
+            function_id = (
+                function_map.get(
+                    feature.get(
+                        "function"
+                    ),
+                    0
+                )
+            )
+
+            # ==================================
+            # Exactly 13 categorical features
+            # ==================================
+
             input_ids.append([
+
                 feature["chord_id"],
+
                 feature["root"],
+
                 feature["bass"],
-                feature["bass_interval"],
-                feature["inverison"],
+
+                feature.get(
+                    "bass_interval",
+                    0
+                ),
+
+                feature.get(
+                    "inversion",
+                    0
+                ),
+
                 feature["attribute"],
-                feature["function"],
-                feature["level"],
-                feature["scale"],
-                feature["duration"],
-                feature["beat"],
-                feature["section"],
-                feature["time"],
-                feature["level"],])
-            scale_vectors.append(feature["scale_vector"])
-            chord_tones.append(feature["chord_tones"])
-            guide_tones.append(feature["guide_tones"])
-            tensions.append(feature["tensions"])
-            available_tensions.append(feature["available_tensions"])
-            avoids.append(feature["avoid"])
 
+                function_id,
 
+                feature.get(
+                    "level",
+                    0
+                ),
 
-        # padding harmony sequence
-        length=len(input_ids)
+                feature.get(
+                    "scale",
+                    0
+                ),
 
-        if length > self.max_harmony_len:
-            input_ids=input_ids[:self.max_harmony_len]
-            scale_vectors=scale_vectors[:self.max_harmony_len]
-            chord_tones=chord_tones[:self.max_harmony_len]
-            guide_tones=guide_tones[:self.max_harmony_len]
-            tensions=tensions[:self.max_harmony_len]
-            available_tensions=available_tensions[:self.max_harmony_len]
-            avoids=avoids[:self.max_harmony_len]
-        length = len(input_ids)
-        pad_length=self.max_harmony_len-length
-        attention_mask = [1 if i< length else 0 for i in range(self.max_harmony_len)]
-        input_ids += [[0]*13 for _ in range(pad_length)]
-        scale_vectors += [[0]*12]*pad_length
-        chord_tones += [[0]*12]*pad_length
-        guide_tones += [[0]*12]*pad_length
-        tensions += [[0]*12]*pad_length
-        available_tensions += [[0]*12]*pad_length
-        avoids += [[0]*12]*pad_length
+                feature.get(
+                    "duration",
+                    0
+                ),
+
+                feature.get(
+                    "beat",
+                    0
+                ),
+
+                feature.get(
+                    "section",
+                    0
+                ),
+
+                feature.get(
+                    "time",
+                    0
+                ),
+
+            ])
+
+            scale_vectors.append(
+                feature["scale_vector"]
+            )
+
+            chord_tones.append(
+                feature["chord_tones"]
+            )
+
+            guide_tones.append(
+                feature["guide_tones"]
+            )
+
+            tensions.append(
+                feature["tensions"]
+            )
+
+            available_tensions.append(
+                feature[
+                    "available_tensions"
+                ]
+            )
+
+            avoids.append(
+                feature["avoid"]
+            )
+
+        # ==================================
+        # Ensure valid harmony
+        # ==================================
+
+        if not input_ids:
+
+            raise RuntimeError(
+                f"No valid harmony features "
+                f"could be built from: {chords}"
+            )
+
+        # ==================================
+        # Truncate
+        # ==================================
+
+        if (
+            len(input_ids)
+            > self.max_harmony_len
+        ):
+
+            input_ids = input_ids[
+                :self.max_harmony_len
+            ]
+
+            scale_vectors = (
+                scale_vectors[
+                    :self.max_harmony_len
+                ]
+            )
+
+            chord_tones = (
+                chord_tones[
+                    :self.max_harmony_len
+                ]
+            )
+
+            guide_tones = (
+                guide_tones[
+                    :self.max_harmony_len
+                ]
+            )
+
+            tensions = (
+                tensions[
+                    :self.max_harmony_len
+                ]
+            )
+
+            available_tensions = (
+                available_tensions[
+                    :self.max_harmony_len
+                ]
+            )
+
+            avoids = (
+                avoids[
+                    :self.max_harmony_len
+                ]
+            )
+
+        length = len(
+            input_ids
+        )
+
+        pad_length = (
+            self.max_harmony_len
+            - length
+        )
+
+        attention_mask = (
+
+            [1] * length
+            +
+            [0] * pad_length
+
+        )
+
+        # ==================================
+        # Padding
+        # ==================================
+
+        input_ids += [
+
+            [0] * 13
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        scale_vectors += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        chord_tones += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        guide_tones += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        tensions += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        available_tensions += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
+        avoids += [
+
+            [0] * 12
+            for _ in range(
+                pad_length
+            )
+
+        ]
+
         return {
-            "input_ids":torch.tensor(input_ids,dtype=torch.long),
-            "scale_vector":torch.tensor(scale_vectors,dtype=torch.float),
-            "chord_tones_vector":torch.tensor(chord_tones,dtype=torch.float),
-            "guide_vector":torch.tensor(guide_tones,dtype=torch.float),
-            "tension_vector":torch.tensor(tensions,dtype=torch.float),
-            "available_tension_vector":torch.tensor(available_tensions,dtype=torch.float),
-            "avoid_vector":torch.tensor(avoids,dtype=torch.float),
-            "attention_mask": torch.tensor(attention_mask,dtype=torch.bool)
+
+            "input_ids":
+                torch.tensor(
+                    input_ids,
+                    dtype=torch.long
+                ),
+
+            "scale_vector":
+                torch.tensor(
+                    scale_vectors,
+                    dtype=torch.float
+                ),
+
+            "chord_tones_vector":
+                torch.tensor(
+                    chord_tones,
+                    dtype=torch.float
+                ),
+
+            "guide_vector":
+                torch.tensor(
+                    guide_tones,
+                    dtype=torch.float
+                ),
+
+            "tension_vector":
+                torch.tensor(
+                    tensions,
+                    dtype=torch.float
+                ),
+
+            "available_tension_vector":
+                torch.tensor(
+                    available_tensions,
+                    dtype=torch.float
+                ),
+
+            "avoid_vector":
+                torch.tensor(
+                    avoids,
+                    dtype=torch.float
+                ),
+
+            "attention_mask":
+                torch.tensor(
+                    attention_mask,
+                    dtype=torch.bool
+                ),
         }
 
-
-
-    # ==================================
+    # ==================================================
     # Melody Processing
-    # ==================================
+    # ==================================================
 
-    def build_melody(self,tokens):
-        ids=[]
-        for token in tokens:
-            ids.append(self.token_to_id.get(token, self.unk_id))
+    def build_melody(
+        self,
+        note_tokens,
+        key_token,
+        tempo_token,
+        is_last
+    ):
 
-        ids=[self.bos_id]+ids+[self.eos_id]
-        ids=ids[:self.seq_length]
-        input_ids=ids[:-1]
-        target_ids=ids[1:]
-        pad_len=self.seq_length-len(input_ids)
-        input_ids += [self.pad_id]*pad_len
-        target_ids += [-100]*pad_len
-        attention_mask=[1 if x!=self.pad_id else 0 for x in input_ids]
+        # ==================================
+        # Same prompt used at inference
+        # ==================================
+
+        prompt_tokens = [
+
+            "<BOS>",
+            key_token,
+            tempo_token,
+
+        ]
+
+        sequence_tokens = (
+            prompt_tokens
+            + note_tokens
+        )
+
+        # Only real song-ending windows
+        # receive EOS
+        if is_last:
+
+            sequence_tokens.append(
+                "<EOS>"
+            )
+
+        # ==================================
+        # Token -> ID
+        # ==================================
+
+        ids = [
+
+            self.token_to_id.get(
+                token,
+                self.unk_id
+            )
+
+            for token
+            in sequence_tokens
+
+        ]
+
+        # Need seq_length + 1 tokens
+        # for next-token prediction
+        ids = ids[
+            :self.seq_length + 1
+        ]
+
+        input_ids = ids[:-1]
+
+        target_ids = ids[1:]
+
+        # ==================================
+        # Do not train:
+        #
+        # BOS -> KEY
+        # KEY -> TEMPO
+        #
+        # But do train:
+        #
+        # TEMPO -> first BAR
+        # ==================================
+
+        prompt_loss_positions = (
+            len(prompt_tokens) - 1
+        )
+
+        for i in range(
+            min(
+                prompt_loss_positions,
+                len(target_ids)
+            )
+        ):
+
+            target_ids[i] = -100
+
+        # ==================================
+        # Padding
+        # ==================================
+
+        pad_len = (
+            self.seq_length
+            - len(input_ids)
+        )
+
+        if pad_len > 0:
+
+            input_ids += (
+                [self.pad_id]
+                * pad_len
+            )
+
+            target_ids += (
+                [-100]
+                * pad_len
+            )
+
+        # Defensive truncation
+        input_ids = input_ids[
+            :self.seq_length
+        ]
+
+        target_ids = target_ids[
+            :self.seq_length
+        ]
+
+        attention_mask = [
+
+            token_id != self.pad_id
+
+            for token_id
+            in input_ids
+
+        ]
+
         return {
-            "input_ids":torch.tensor(input_ids, dtype=torch.long),
-            "target_ids":torch.tensor(target_ids,dtype=torch.long),
-            "attention_mask":torch.tensor(attention_mask,dtype=torch.bool)
+
+            "input_ids":
+                torch.tensor(
+                    input_ids,
+                    dtype=torch.long
+                ),
+
+            "target_ids":
+                torch.tensor(
+                    target_ids,
+                    dtype=torch.long
+                ),
+
+            "attention_mask":
+                torch.tensor(
+                    attention_mask,
+                    dtype=torch.bool
+                ),
         }
 
-    # ==================================
+    # ==================================================
     # Get Item
-    # ==================================
+    # ==================================================
 
-    def __getitem__(self, index):
-        sample=self.samples[index]
+    def __getitem__(
+        self,
+        index
+    ):
 
-        # solo token
-        tokens=sample["tokens"]
-        # harmony
-        chords=self.extract_chords(tokens)
-        harmony=self.build_harmony(chords)
+        sample = self.samples[
+            index
+        ]
 
-        # melody
-        melody=self.build_melody(tokens)
+        # ==================================
+        # Harmony
+        # ==================================
+
+        harmony = (
+            self.build_harmony(
+                sample["chords"]
+            )
+        )
+
+        # ==================================
+        # Melody
+        # ==================================
+
+        melody = (
+            self.build_melody(
+
+                note_tokens=
+                    sample[
+                        "melody_tokens"
+                    ],
+
+                key_token=
+                    sample[
+                        "key_token"
+                    ],
+
+                tempo_token=
+                    sample[
+                        "tempo_token"
+                    ],
+
+                is_last=
+                    sample[
+                        "is_last"
+                    ],
+
+            )
+        )
 
         return {
-            "harmony":harmony,
-            "melody_input":melody["input_ids"],
-            "melody_target":melody["target_ids"],
-            "attention_mask":melody["attention_mask"]
+
+            "harmony":
+                harmony,
+
+            "melody_input":
+                melody[
+                    "input_ids"
+                ],
+
+            "melody_target":
+                melody[
+                    "target_ids"
+                ],
+
+            "attention_mask":
+                melody[
+                    "attention_mask"
+                ],
         }
