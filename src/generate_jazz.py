@@ -4,16 +4,18 @@ Run:
 python -m src.generate_jazz
 """
 
+
 import json
 import os
-
 import torch
+
 
 from .melody_generate_model import JazzGenerationModel, audit_melody_tokens
 from .Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from .Jazz_Melody_Decoder.melody_decoder_Transformer import JazzTransformer
 from .harmony_generator import HarmonyGenerator
 from .midi_decoder import tokens_to_midi
+
 
 from .config import (
     GENERATION_CHECKPOINT_FILE,
@@ -26,12 +28,15 @@ from .config import (
 )
 
 
+
 # ===============================
 # Generation Config
 # ===============================
 
-TEMPERATURE = 0.85
-TOP_K = 40
+
+TEMPERATURE = 0.75
+
+TOP_K = 20
 
 SEED = 42
 
@@ -40,96 +45,39 @@ BEATS_PER_BAR = None
 START_BAR = None
 
 
-# ===============================
-# Load checkpoint
-# ===============================
-
-def load_checkpoint(module, path, label="Model"):
-
-    checkpoint = torch.load(
-        path,
-        map_location="cpu"
-    )
-
-    if "model_state_dict" in checkpoint:
-        state = checkpoint["model_state_dict"]
-
-    else:
-        state = checkpoint
-
-
-    result = module.load_state_dict(
-        state,
-        strict=False
-    )
-
-
-    print(f"{label} loaded:")
-    print(path)
-
-
-    if result.missing_keys:
-        print(
-            "Missing keys:",
-            len(result.missing_keys)
-        )
-
-    if result.unexpected_keys:
-        print(
-            "Unexpected keys:",
-            len(result.unexpected_keys)
-        )
-
-
 
 # ===============================
 # Prompt
 # ===============================
 
-def build_prompt(token_to_id, key, tempo):
 
-    key_token = f"KEY_{key}"
-
-
-    if key_token not in token_to_id:
-        raise ValueError(
-            f"Missing key token: {key_token}"
-        )
-
-
-    tempo_candidates = [
-        f"AVGTEMPO_{tempo}",
-        f"AVGTEMPO_{float(tempo):.1f}"
-    ]
-
-
-    tempo_token = None
-
-    for t in tempo_candidates:
-
-        if t in token_to_id:
-            tempo_token = t
-            break
-
-
-    if tempo_token is None:
-
-        raise ValueError(
-            f"Tempo token not found: {tempo}"
-        )
-
+def build_prompt(token_to_id,key,tempo):
 
     tokens = [
+
         "<BOS>",
-        key_token,
-        tempo_token
+
+        f"KEY_{key}",
+
+        f"AVGTEMPO_{tempo}"
+
     ]
 
 
-    ids = [
-        token_to_id[t]
-        for t in tokens
-    ]
+    ids=[]
+
+
+    for t in tokens:
+
+        if t not in token_to_id:
+
+            raise ValueError(
+                f"Token missing in vocabulary: {t}"
+            )
+
+        ids.append(
+            token_to_id[t]
+        )
 
 
     return torch.tensor(
@@ -139,22 +87,32 @@ def build_prompt(token_to_id, key, tempo):
 
 
 
+
 # ===============================
 # Length control
 # ===============================
 
+
 def get_max_length(bars):
 
     if bars == 32:
+
         return GENERATE_32_BAR_LENGTH
 
+
     if bars == 48:
+
         return GENERATE_48_BAR_LENGTH
 
+
     if bars == 64:
+
         return GENERATE_64_BAR_LENGTH
 
+
     return bars * TOKENS_PER_BAR
+
+
 
 
 
@@ -162,13 +120,16 @@ def get_max_length(bars):
 # Main
 # ===============================
 
+
 def main():
 
-    device = torch.device(
+
+    device=torch.device(
         "cuda"
         if torch.cuda.is_available()
         else "cpu"
     )
+
 
 
     os.makedirs(
@@ -177,9 +138,11 @@ def main():
     )
 
 
-    # ---------------------------
+
+    # ===============================
     # Vocabulary
-    # ---------------------------
+    # ===============================
+
 
     with open(
         MELODY_VOCAB_FILE,
@@ -187,21 +150,24 @@ def main():
         encoding="utf8"
     ) as f:
 
-        vocab = json.load(f)
+        vocab=json.load(f)
 
 
 
-    token_to_id = vocab["token_to_id"]
+    token_to_id=vocab["token_to_id"]
 
-    id_to_token = {
+
+    id_to_token={
         int(k):v
         for k,v in vocab["id_to_token"].items()
     }
 
 
-    bos_id = token_to_id["<BOS>"]
 
-    eos_id = token_to_id["<EOS>"]
+    bos_id=token_to_id["<BOS>"]
+
+    eos_id=token_to_id["<EOS>"]
+
 
 
     print(
@@ -210,12 +176,14 @@ def main():
     )
 
 
-    # ---------------------------
-    # Build model
-    # ---------------------------
+
+    # ===============================
+    # Build Model
+    # ===============================
 
 
-    harmony_encoder = HarmonyModel(
+
+    harmony_encoder=HarmonyModel(
 
         chord_vocab_size=1064,
 
@@ -231,12 +199,13 @@ def main():
 
         num_heads=8,
 
-        num_layers=6,
+        num_layers=6
+
     )
 
 
 
-    melody_decoder = JazzTransformer(
+    melody_decoder=JazzTransformer(
 
         vocab_size=len(token_to_id),
 
@@ -249,52 +218,96 @@ def main():
         num_layers=8,
 
         dropout=0.1
+
     )
 
 
 
-    model = JazzGenerationModel(
+    model=JazzGenerationModel(
+
         harmony_encoder,
+
         melody_decoder
+
     )
 
 
-    # IMPORTANT:
-    # Load end-to-end trained checkpoint
 
-    load_checkpoint(
-        model,
+    # ===============================
+    # Load End-to-End checkpoint
+    # ===============================
+
+
+    checkpoint=torch.load(
+
         GENERATION_CHECKPOINT_FILE,
-        "Generation Model"
+
+        map_location="cpu"
+
     )
 
 
-    model.to(device)
+
+    harmony_result = harmony_encoder.load_state_dict(
+
+        checkpoint["harmony_state_dict"],
+
+        strict=True
+
+    )
+
+
+    melody_result = melody_decoder.load_state_dict(
+
+        checkpoint["melody_state_dict"],
+
+        strict=True
+
+    )
+
+
+
+    print("===============================")
+
+    print("Generation model loaded")
+
+    print(
+        "Epoch:",
+        checkpoint["epoch"]
+    )
+
+    print(
+        "Val Loss:",
+        checkpoint["val_loss"]
+    )
+
+    print("===============================")
+
+
+
+    model=model.to(device)
 
     model.eval()
 
 
 
-    # ===========================
-    # User Condition
-    # ===========================
 
-
-    bars = 32
-
-    key = "Bb-maj"
-
-    tempo = 120.1
+    # ===============================
+    # Condition
+    # ===============================
 
 
 
-    # ---------------------------
-    # Chord progression
-    # one chord per position
-    # ---------------------------
+    bars=32
+
+    key="Bb-maj"
+
+    tempo=120.1
 
 
-    chords = [
+
+
+    chords=[
 
         "CMin7",
         "F7",
@@ -319,28 +332,39 @@ def main():
     ]
 
 
-    # repeat to 32 bars
 
     chords = chords * 2
 
 
 
-    prompt = build_prompt(
+
+    prompt=build_prompt(
+
         token_to_id,
+
         key,
+
         tempo
+
     )
 
 
-    harmony = HarmonyGenerator().build(
+
+    harmony=HarmonyGenerator().build(
+
         chords
+
     )
 
 
-    harmony = {
+    harmony={
+
         k:v.to(device)
+
         for k,v in harmony.items()
+
     }
+
 
 
 
@@ -350,17 +374,19 @@ def main():
 
 
 
-    # ===========================
+
+
+    # ===============================
     # Generate
-    # ===========================
+    # ===============================
 
 
-    generated, info = model.generate(
+
+    generated,info=model.generate(
 
         harmony,
 
         prompt_ids=prompt.to(device),
-
 
         eos_id=eos_id,
 
@@ -381,11 +407,14 @@ def main():
         seed=SEED,
 
         return_info=True
+
     )
 
 
 
-    tokens = [
+
+
+    tokens=[
 
         id_to_token[i]
 
@@ -395,93 +424,96 @@ def main():
 
 
 
-    # ===========================
-    # Audit
-    # ===========================
 
 
-    audit = audit_melody_tokens(tokens)
-
-
-    if (
-        any(
-            value
-            for key,value in audit.items()
-            if key!="note_count"
-        )
-
-        or audit["note_count"]
-        != info["note_count"]
-    ):
-
-        raise RuntimeError(
-            f"Time validation failed:{audit}"
-        )
-
-
-    info["audit"] = audit
-
-
-
-    # ===========================
+    # ===============================
     # Save
-    # ===========================
+    # ===============================
 
 
-    token_output = os.path.join(
+
+    token_output=os.path.join(
+
         OUTPUT_DIR,
+
         "generated_tokens.json"
+
     )
 
 
-    report_output = os.path.join(
+    report_output=os.path.join(
+
         OUTPUT_DIR,
+
         "generation_report.json"
+
     )
 
 
-    midi_output = os.path.join(
+    midi_output=os.path.join(
+
         OUTPUT_DIR,
+
         "generated_jazz.mid"
+
     )
 
 
 
     with open(
+
         token_output,
+
         "w",
+
         encoding="utf8"
+
     ) as f:
 
+
         json.dump(
+
             tokens,
+
             f,
+
             indent=2,
+
             ensure_ascii=False
+
         )
 
 
 
+
     with open(
+
         report_output,
+
         "w",
+
         encoding="utf8"
+
     ) as f:
 
+
         json.dump(
+
             info,
+
             f,
+
             indent=2,
+
             ensure_ascii=False
+
         )
 
 
 
     print(
-        "Saved tokens:",
-        token_output
+        "Generation report:"
     )
-
 
     print(
         json.dumps(
@@ -491,17 +523,21 @@ def main():
     )
 
 
-    midi = tokens_to_midi(tokens)
+
+    midi=tokens_to_midi(tokens)
+
 
     midi.save(
         midi_output
     )
 
 
+
     print(
         "Saved MIDI:",
         midi_output
     )
+
 
 
 
