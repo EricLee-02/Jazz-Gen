@@ -521,6 +521,18 @@ def main():
         )
     )
 
+    midi_tokens = []
+
+    start = False
+
+    for t in tokens:
+
+        if t.startswith("BAR_"):
+            start = True
+
+        if start:
+            midi_tokens.append(t)
+
 
 
     midi=tokens_to_midi(tokens)
