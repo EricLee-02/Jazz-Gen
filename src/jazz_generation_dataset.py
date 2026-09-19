@@ -1,6 +1,6 @@
 import json
 import torch
-
+import random
 from pathlib import Path
 from torch.utils.data import Dataset
 
@@ -15,7 +15,10 @@ class JazzGenerationDataset(Dataset):
         vocab_file,
         seq_length=512,
         max_harmony_len=128,
-        stride=256
+        stride=256,
+        split = "train",
+        train_ratio = 0.9,
+        seed =42
     ):
 
         self.seq_length = seq_length
@@ -86,9 +89,66 @@ class JazzGenerationDataset(Dataset):
         # Load Solo Files
         # ==========================
 
-        self.files = sorted(
-            Path(solo_dir).glob("*.json")
+        all_files = sorted(Path(solo_dir).glob("*.json")
         )
+
+    # ==========================
+    # Remove songs without chord
+    # BEFORE train/val split
+    # ==========================
+
+        valid_files = []
+        skipped_no_chord = 0
+
+        for file in all_files:
+
+            with open(file, "r", encoding="utf8") as f:
+                data = json.load(f)
+
+            tokens = data["tokens"]
+
+            has_chord = any(
+            token.startswith("Chord_")
+            for token in tokens
+        )
+
+            if has_chord:
+                valid_files.append(file)
+            else:
+                skipped_no_chord += 1
+
+        print("Valid harmony songs:", len(valid_files))
+        print("Skipped no-chord songs:", skipped_no_chord)
+
+    # ==========================
+    # Song-level train/val split
+    # ==========================
+
+        rng = random.Random(seed)
+        rng.shuffle(valid_files)
+
+        split_idx = int(
+        len(valid_files) * train_ratio
+    )
+
+        if split == "train":
+
+            self.files = valid_files[:split_idx]
+
+        elif split == "val":
+
+            self.files = valid_files[split_idx:]
+
+        else:
+
+            raise ValueError(
+            "split must be 'train' or 'val'"
+        )
+
+        print(
+        f"{split} songs:",
+        len(self.files)
+    )
 
         self.samples = []
 
