@@ -54,13 +54,10 @@ class JazzGenerationDataset(Dataset):
         # Load Melody Vocabulary
         # ==========================
 
-        with open(
-            vocab_file,
-            "r",
-            encoding="utf8"
-        ) as f:
-
+        with open(vocab_file,"r",encoding="utf8") as f:
             vocab = json.load(f)
+
+
 
         self.token_to_id = vocab["token_to_id"]
 
@@ -68,6 +65,17 @@ class JazzGenerationDataset(Dataset):
             int(k): v
             for k, v in vocab["id_to_token"].items()
         }
+
+        self.tempo_vocab = {}
+        for token in self.token_to_id:
+            if token.startswith("AVGTEMPO_"):
+                try:
+                    value = float(token.replace("AVGTEMPO_","",1))
+                    self.tempo_vocab[token] = value
+                except ValueError:
+                    continue
+        if not self.tempo_vocab:
+            raise ValueError("No AVGTEMPO_tokens found in vocabulary")
 
         self.pad_id = self.token_to_id["<PAD>"]
         self.bos_id = self.token_to_id["<BOS>"]
@@ -221,6 +229,18 @@ class JazzGenerationDataset(Dataset):
             skipped_no_chords
         )
 
+
+    def match_tempo_token(self,tempo_token):
+        if tempo_token in self.token_to_id:
+            return tempo_token
+        try :
+            tempo_value = float(tempo_token.replace("AVGTEMPO_","",1))
+        except ValueError:
+            raise ValueError( f"Invalid tempo token: {tempo_token}")
+        matched_token = min(self.tempo_vocab,key=lambda token:abs(self.tempo_vocab[token]-tempo_value))
+
+        return matched_token
+
     # ==================================================
     # Dataset Length
     # ==================================================
@@ -262,6 +282,8 @@ class JazzGenerationDataset(Dataset):
                 and tempo_token is not None
             ):
                 break
+        if tempo_token is not None:
+            tempo_token = self.match_tempo_token(tempo_token)
 
         return (
             key_token,
@@ -897,6 +919,14 @@ class JazzGenerationDataset(Dataset):
         tempo_token,
         is_last
     ):
+        
+        if key_token not in self.token_to_id:  
+            raise ValueError(f"Key token not in vocabulary: "f"{key_token}")
+
+
+        if tempo_token not in self.token_to_id:
+
+            raise ValueError(f"Tempo token not in vocabulary: "f"{tempo_token}")
 
         # ==================================
         # Same prompt used at inference
@@ -927,17 +957,7 @@ class JazzGenerationDataset(Dataset):
         # Token -> ID
         # ==================================
 
-        ids = [
-
-            self.token_to_id.get(
-                token,
-                self.unk_id
-            )
-
-            for token
-            in sequence_tokens
-
-        ]
+        ids = [self.token_to_id.get(token,self.unk_id)for token in sequence_tokens]
 
         # Need seq_length + 1 tokens
         # for next-token prediction
