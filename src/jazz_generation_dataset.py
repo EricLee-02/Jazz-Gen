@@ -586,6 +586,26 @@ class JazzGenerationDataset(Dataset):
                     )
 
         return chords
+    
+
+    def split_note_events(self, note_tokens):
+        events = []
+        current = []
+        for token in note_tokens:
+            if token.startswith("BAR_"):
+                if current:
+                    if self.is_complete_note(current):
+                        events.append(current)
+                current = [token]
+            else:
+                if current:
+                    current.append(token)
+    # final note
+        if current:
+            if self.is_complete_note(current):
+                events.append(current)
+        return events
+        
 
     # ==================================================
     # Chord -> Harmony Features
@@ -937,7 +957,6 @@ class JazzGenerationDataset(Dataset):
 
 
         if tempo_token not in self.token_to_id:
-
             raise ValueError(f"Tempo token not in vocabulary: "f"{tempo_token}")
 
         # ==================================
@@ -945,25 +964,17 @@ class JazzGenerationDataset(Dataset):
         # ==================================
 
         prompt_tokens = [
-
             "<BOS>",
             key_token,
             tempo_token,
+            ]
 
-        ]
-
-        sequence_tokens = (
-            prompt_tokens
-            + note_tokens
-        )
+        sequence_tokens = (prompt_tokens+ note_tokens)
 
         # Only real song-ending windows
         # receive EOS
         if is_last:
-
-            sequence_tokens.append(
-                "<EOS>"
-            )
+            sequence_tokens.append("<EOS>")
 
         # ==================================
         # Token -> ID
