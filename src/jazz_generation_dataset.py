@@ -95,6 +95,7 @@ class JazzGenerationDataset(Dataset):
         skipped_prompt = 0
         skipped_no_notes = 0
         skipped_no_chords = 0
+        skipped_no_chords_songs = 0
 
         for file in self.files:
 
@@ -107,6 +108,10 @@ class JazzGenerationDataset(Dataset):
                 data = json.load(f)
 
             tokens = data["tokens"]
+            has_chord = any(token.startswith("Chord_") for token in tokens)
+            if not has_chord:
+                skipped_no_chords_songs +=1
+                continue
 
             # --------------------------
             # Global conditions
@@ -208,6 +213,7 @@ class JazzGenerationDataset(Dataset):
             "Solo files:",
             len(self.files)
         )
+        print("Skipped songs with no chord:", skipped_no_chords_songs)
 
         print(
             "Generation samples:",
@@ -968,113 +974,153 @@ class JazzGenerationDataset(Dataset):
             key_token,
             tempo_token,
             ]
+        max_total_tokens = self.seq_length +1
+        sequence_tokens = list(prompt_tokens)
 
         sequence_tokens = (prompt_tokens+ note_tokens)
+        note_events = self.split_note_events(note_tokens)
+        included_notes = 0
+   # ==================================
+    # Add notes ONLY if the entire note fits
+    # ==================================
 
-        # Only real song-ending windows
-        # receive EOS
-        if is_last:
-            sequence_tokens.append("<EOS>")
+        for event in note_events:
 
-        # ==================================
-        # Token -> ID
-        # ==================================
+        # Never cut a note in the middle
+            if (
+            len(sequence_tokens)
+            + len(event)
+            > max_total_tokens
+        ):
+                break
 
-        ids = [self.token_to_id.get(token,self.unk_id)for token in sequence_tokens]
+            sequence_tokens.extend(event)
 
-        # Need seq_length + 1 tokens
-        # for next-token prediction
-        ids = ids[
-            :self.seq_length + 1
-        ]
+            included_notes += 1
+
+    # ==================================
+    # EOS
+    # ==================================
+
+        all_notes_included = (
+        included_notes
+        == len(note_events)
+    )
+
+    # Only train EOS when:
+    #
+    # 1. this is actually the end of the song
+    # 2. all notes from this segment were retained
+    # 3. EOS itself fits
+    #
+        if (
+        is_last
+        and all_notes_included
+        and len(sequence_tokens) + 1
+            <= max_total_tokens
+    ):
+
+            sequence_tokens.append(
+            "<EOS>"
+        )
+
+    # ==================================
+    # Token -> ID
+    # ==================================
+
+        ids = [
+            self.token_to_id.get(
+            token,
+            self.unk_id
+        )
+        for token in sequence_tokens
+    ]
 
         input_ids = ids[:-1]
-
         target_ids = ids[1:]
 
-        # ==================================
-        # Do not train:
-        #
-        # BOS -> KEY
-        # KEY -> TEMPO
-        #
-        # But do train:
-        #
-        # TEMPO -> first BAR
-        # ==================================
+    # ==================================
+    # Ignore prompt prediction loss
+    #
+    # <BOS> -> KEY       ignore
+    # KEY   -> TEMPO     ignore
+    # TEMPO -> BAR       train
+    # ==================================
 
         prompt_loss_positions = (
-            len(prompt_tokens) - 1
-        )
+        len(prompt_tokens) - 1
+    )
 
         for i in range(
             min(
-                prompt_loss_positions,
-                len(target_ids)
-            )
-        ):
+            prompt_loss_positions,
+            len(target_ids)
+        )
+    ):
 
             target_ids[i] = -100
 
-        # ==================================
-        # Padding
-        # ==================================
+    # ==================================
+    # Padding
+    # ==================================
 
         pad_len = (
-            self.seq_length
-            - len(input_ids)
-        )
+        self.seq_length
+        - len(input_ids)
+    )
 
         if pad_len > 0:
 
             input_ids += (
-                [self.pad_id]
-                * pad_len
-            )
+            [self.pad_id]
+            * pad_len
+        )
 
             target_ids += (
-                [-100]
-                * pad_len
-            )
+            [-100]
+            * pad_len
+        )
 
-        # Defensive truncation
-        input_ids = input_ids[
-            :self.seq_length
-        ]
+    # Defensive check
+        if len(input_ids) != self.seq_length:
+            raise RuntimeError(
+            f"input length error: "
+            f"{len(input_ids)} != "
+            f"{self.seq_length}"
+        )
 
-        target_ids = target_ids[
-            :self.seq_length
-        ]
+        if len(target_ids) != self.seq_length:
+            raise RuntimeError(
+            f"target length error: "
+            f"{len(target_ids)} != "
+            f"{self.seq_length}"
+        )
 
         attention_mask = [
-
-            token_id != self.pad_id
-
-            for token_id
-            in input_ids
-
-        ]
+        token_id != self.pad_id
+        for token_id in input_ids
+    ]
 
         return {
+        "input_ids":
+            torch.tensor(
+                input_ids,
+                dtype=torch.long
+            ),
 
-            "input_ids":
-                torch.tensor(
-                    input_ids,
-                    dtype=torch.long
-                ),
+        "target_ids":
+            torch.tensor(
+                target_ids,
+                dtype=torch.long
+            ),
 
-            "target_ids":
-                torch.tensor(
-                    target_ids,
-                    dtype=torch.long
-                ),
+        "attention_mask":
+            torch.tensor(
+                attention_mask,
+                dtype=torch.bool
+            )
+    }
 
-            "attention_mask":
-                torch.tensor(
-                    attention_mask,
-                    dtype=torch.bool
-                ),
-        }
 
     # ==================================================
     # Get Item
