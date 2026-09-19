@@ -215,7 +215,7 @@ def main():
 
         num_heads=8,
 
-        num_layers=8,
+        num_layers=6,
 
         dropout=0.1
 
