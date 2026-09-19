@@ -1068,7 +1068,6 @@ class JazzGenerationDataset(Dataset):
         max_total_tokens = self.seq_length +1
         sequence_tokens = list(prompt_tokens)
 
-        sequence_tokens = (prompt_tokens+ note_tokens)
         note_events = self.split_note_events(note_tokens)
         included_notes = 0
    # ==================================
