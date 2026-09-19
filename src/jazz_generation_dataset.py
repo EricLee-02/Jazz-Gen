@@ -68,9 +68,9 @@ class JazzGenerationDataset(Dataset):
 
         self.tempo_vocab = {}
         for token in self.token_to_id:
-            if token.startswith("AVGTEMPO_"):
+            if token.startswith('AVGTEMPO_'):
                 try:
-                    value = float(token.replace("AVGTEMPO_","",1))
+                    value = float(token.replace('AVGTEMPO_',"",1))
                     self.tempo_vocab[token] = value
                 except ValueError:
                     continue
@@ -234,12 +234,24 @@ class JazzGenerationDataset(Dataset):
         if tempo_token in self.token_to_id:
             return tempo_token
         try :
-            tempo_value = float(tempo_token.replace("AVGTEMPO_","",1))
+            tempo_value = float(tempo_token.replace('AVGTEMPO_',"",1))
         except ValueError:
             raise ValueError( f"Invalid tempo token: {tempo_token}")
-        matched_token = min(self.tempo_vocab,key=lambda token:abs(self.tempo_vocab[token]-tempo_value))
+        candidates = []
+        for token in self.token_to_id:
+            if not token.startswith('AVGTEMPO_'):
+                continue
+            try:
+                value = float(token.replace('AVGTEMPO_','',1))
+                candidates.append((abs(value-tempo_value),token))
+            except ValueError:
+                continue
+        if not candidates:
+            raise ValueError("No AVGTEMPO tokens found in vocabulary.")
+        
+        _,nearest_token = min(candidates,key=lambda x:x[0])
 
-        return matched_token
+        return nearest_token
 
     # ==================================================
     # Dataset Length
