@@ -1,89 +1,77 @@
 """
-Decode JazzGen melody tokens into MIDI.
+JazzGen MIDI Decoder
 
-Token format:
+Decode:
 
-<BOS>
-KEY_xxx
-AVGTEMPO_xxx
+BAR
+BEAT
+DIVISION
+TATUM
 
-BAR_x
-PERIOD_x
-BEAT_x
-DIVISION_x
-TATUM_x
+PITCH
+DURATION
+VELOCITY
+ARTIC
+MICRO
 
-PITCH_x
-DURATION_x
-VELOCITY_x
-ARTIC_x
-MICRO_x
+into MIDI
 
 """
+
 
 import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 
 
+
 # =========================
-# MIDI constants
+# MIDI settings
 # =========================
+
 
 TICKS_PER_BEAT = 480
 
 
+
 # =========================
-# Duration mapping
+# Duration
 # =========================
+
 
 def duration_to_ticks(duration):
 
-    """
-    Convert token duration to MIDI ticks
 
-    DURATION:
-    
-    1  = whole note
-    2  = half
-    4  = quarter
-    8  = eighth
-    16 = sixteenth
+    mapping={
 
-    """
+        "1": TICKS_PER_BEAT*4,
 
-    mapping = {
-
-        "1": TICKS_PER_BEAT * 4,
-
-        "2": TICKS_PER_BEAT * 2,
+        "2": TICKS_PER_BEAT*2,
 
         "4": TICKS_PER_BEAT,
 
-        "8": TICKS_PER_BEAT // 2,
+        "8": TICKS_PER_BEAT//2,
 
-        "16": TICKS_PER_BEAT // 4,
+        "16": TICKS_PER_BEAT//4,
 
-        "32": TICKS_PER_BEAT // 8,
+        "32": TICKS_PER_BEAT//8,
 
     }
 
 
-    if duration not in mapping:
-
-        raise ValueError(
-            f"Unknown duration token: {duration}"
-        )
-
-
-    return mapping[duration]
+    return mapping.get(
+        duration,
+        TICKS_PER_BEAT//4
+    )
 
 
 
 # =========================
-# Note object
+# Note
 # =========================
+
 
 class Note:
+
 
     def __init__(
         self,
@@ -98,28 +86,24 @@ class Note:
         micro=None
     ):
 
-        self.bar = bar
+        self.bar=bar
+        self.beat=beat
+        self.division=division
+        self.tatum=tatum
 
-        self.beat = beat
+        self.pitch=pitch
+        self.duration=duration
 
-        self.division = division
+        self.velocity=velocity
 
-        self.tatum = tatum
+        self.articulation=articulation
+        self.micro=micro
 
-        self.pitch = pitch
-
-        self.duration = duration
-
-        self.velocity = velocity
-
-        self.articulation = articulation
-
-        self.micro = micro
 
 
 
 # =========================
-# Token parser
+# Parse tokens
 # =========================
 
 
@@ -131,13 +115,10 @@ def parse_notes(tokens):
 
     current={
 
-        "bar":None,
-
-        "beat":None,
-
-        "division":None,
-
-        "tatum":None,
+        "bar":0,
+        "beat":1,
+        "division":1,
+        "tatum":1
 
     }
 
@@ -146,44 +127,31 @@ def parse_notes(tokens):
 
 
 
-    for idx,token in enumerate(tokens):
+    for token in tokens:
 
 
         if not isinstance(token,str):
-
             continue
 
 
 
         if token in [
-
             "<BOS>",
             "<EOS>",
             "<PAD>"
-
         ]:
-
             continue
 
 
 
-        field,value = (
-
-            token.split("_",1)
-
-            if "_" in token
-
-            else
-
-            (token,None)
-
-        )
+        if "_" not in token:
+            continue
 
 
 
-        # -----------------
-        # Time information
-        # -----------------
+        field,value=token.split("_",1)
+
+
 
         if field=="BAR":
 
@@ -200,30 +168,18 @@ def parse_notes(tokens):
             current["division"]=int(value)
 
 
-
         elif field=="TATUM":
 
             current["tatum"]=int(value)
 
 
 
-        # -----------------
-        # New note
-        # -----------------
-
         elif field=="PITCH":
 
 
             pending={
 
-                "bar":current["bar"],
-
-                "beat":current["beat"],
-
-                "division":current["division"],
-
-                "tatum":current["tatum"],
-
+                **current,
 
                 "pitch":int(value),
 
@@ -241,27 +197,21 @@ def parse_notes(tokens):
 
         elif field=="DURATION":
 
-
             if pending:
-
                 pending["duration"]=value
 
 
 
         elif field=="VELOCITY":
 
-
             if pending:
-
                 pending["velocity"]=int(value)
 
 
 
         elif field=="ARTIC":
 
-
             if pending:
-
                 pending["articulation"]=value
 
 
@@ -274,18 +224,14 @@ def parse_notes(tokens):
                 pending["micro"]=value
 
 
+                if pending["duration"]:
 
-            # note event complete
 
-            if pending["duration"]:
+                    notes.append(
+                        Note(**pending)
+                    )
 
-                notes.append(
-
-                    Note(**pending)
-
-                )
-
-                pending=None
+                    pending=None
 
 
 
@@ -295,7 +241,7 @@ def parse_notes(tokens):
 
 
 # =========================
-# Position convert
+# Time conversion
 # =========================
 
 
@@ -303,13 +249,20 @@ def note_to_tick(note):
 
 
     """
-    Convert BAR/BEAT/DIVISION/TATUM
-    to absolute MIDI tick
+    Convert hierarchical musical position
+
+    BAR
+     |
+     BEAT
+       |
+       DIVISION
+          |
+          TATUM
+
     """
 
 
-    ticks_per_division = TICKS_PER_BEAT // 4
-
+    # bar
 
     tick = (
 
@@ -322,40 +275,101 @@ def note_to_tick(note):
     )
 
 
+    # beat
+
     tick += (
 
-        (note.beat-1)
-        *
-        TICKS_PER_BEAT
+        note.beat-1
+    ) * TICKS_PER_BEAT
+
+
+
+    # division
+
+    # division is quarter subdivision
+
+    tick += (
+
+        note.division-1
+    ) * (
+
+        TICKS_PER_BEAT//4
 
     )
 
 
+
+    # tatum is smaller subdivision
+
     tick += (
 
-        (note.division-1)
-        *
-        ticks_per_division
+        note.tatum-1
+    ) * (
+
+        TICKS_PER_BEAT//16
 
     )
 
 
-    tick += (
 
-        (note.tatum-1)
-        *
-        ticks_per_division
+    # micro timing
 
+
+    if note.micro:
+
+
+        if "EARLY" in note.micro:
+
+            tick -= 15
+
+
+        elif "LATE" in note.micro:
+
+            tick +=15
+
+
+
+    return max(
+        int(tick),
+        0
     )
 
-
-    return tick
 
 
 
 
 # =========================
-# MIDI export
+# articulation
+# =========================
+
+
+def apply_articulation(
+    ticks,
+    articulation
+):
+
+
+    if articulation=="staccato":
+
+        return int(
+            ticks*0.55
+        )
+
+
+    elif articulation=="tenuto":
+
+        return int(
+            ticks*1.1
+        )
+
+
+    return ticks
+
+
+
+
+# =========================
+# Export MIDI
 # =========================
 
 
@@ -368,11 +382,11 @@ def tokens_to_midi(
     notes=parse_notes(tokens)
 
 
+
     midi=MidiFile(
-
         ticks_per_beat=TICKS_PER_BEAT
-
     )
+
 
 
     track=MidiTrack()
@@ -384,13 +398,10 @@ def tokens_to_midi(
     track.append(
 
         MetaMessage(
-
             "set_tempo",
-
             tempo=mido.bpm2tempo(
                 tempo_bpm
             )
-
         )
 
     )
@@ -407,54 +418,60 @@ def tokens_to_midi(
         start=note_to_tick(note)
 
 
-        end=start+duration_to_ticks(
+
+        duration=duration_to_ticks(
             note.duration
         )
 
 
+
+        duration=apply_articulation(
+            duration,
+            note.articulation
+        )
+
+
+
+        end=start+duration
+
+
+
         events.append(
-
             (
-
                 start,
-
+                1,
                 "on",
-
                 note
-
             )
-
         )
+
 
 
         events.append(
-
             (
-
                 end,
-
+                0,
                 "off",
-
                 note
-
             )
-
         )
 
 
+
+
+    # off before on
 
     events.sort(
-
-        key=lambda x:x[0]
-
+        key=lambda x:(x[0],x[1])
     )
+
 
 
     last_tick=0
 
 
 
-    for tick,event,note in events:
+    for tick,_,event,note in events:
 
 
         delta=tick-last_tick
@@ -470,15 +487,10 @@ def tokens_to_midi(
             track.append(
 
                 Message(
-
                     "note_on",
-
                     note=note.pitch,
-
                     velocity=note.velocity,
-
                     time=delta
-
                 )
 
             )
@@ -490,15 +502,10 @@ def tokens_to_midi(
             track.append(
 
                 Message(
-
                     "note_off",
-
                     note=note.pitch,
-
                     velocity=0,
-
                     time=delta
-
                 )
 
             )
