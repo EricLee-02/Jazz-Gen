@@ -361,7 +361,6 @@ def main():
 
         prompt_ids=prompt.to(device),
 
-        bos_id=bos_id,
 
         eos_id=eos_id,
 
