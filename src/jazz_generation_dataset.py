@@ -303,10 +303,7 @@ class JazzGenerationDataset(Dataset):
             return key_token
 
     # 2. Invalid format
-        if (
-        not isinstance(key_token, str)
-        or not key_token.startswith("KEY_")
-    ):
+        if (not key_token.startswith("KEY_")):
             return "<UNK>"
 
         body = key_token[4:]
@@ -317,40 +314,16 @@ class JazzGenerationDataset(Dataset):
 
         root, mode = body.split("-", 1)
 
-    # 3. Enharmonic equivalent
-        enharmonic_map = {
-        "Db": "C#",
-        "C#": "Db",
+        if mode == "chorm":
+            mode = "maj"
 
-        "Eb": "D#",
-        "D#": "Eb",
+ 
 
-        "Gb": "F#",
-        "F#": "Gb",
+        candidate = f"KEY_{root}-{mode}"
 
-        "Ab": "G#",
-        "G#": "Ab",
 
-        "Bb": "A#",
-        "A#": "Bb",
-
-        "B": "Cb",
-        "Cb": "B",
-
-        "E": "Fb",
-        "Fb": "E",
-    }
-
-        alt_root = enharmonic_map.get(root)
-
-        if alt_root is not None:
-
-            candidate = (
-            f"KEY_{alt_root}-{mode}"
-        )
-
-            if candidate in self.token_to_id:
-                return candidate
+        if candidate in self.token_to_id:
+            return candidate
 
     # 4. Final fallback
         return "<UNK>"
