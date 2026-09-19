@@ -41,7 +41,7 @@ DEVICE = "cuda"
 
 # Melody Generation Config
 
-TOKENS_PER_BAR = 55
+TOKENS_PER_BAR = 70
 BARS_32 = 32
 BARS_48 = 48
 BARS_64 = 64
