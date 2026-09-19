@@ -296,6 +296,65 @@ class JazzGenerationDataset(Dataset):
         )
 
 
+    def _resolve_key_token(self, key_token):
+
+    # 1. Exact match
+        if key_token in self.token_to_id:
+            return key_token
+
+    # 2. Invalid format
+        if (
+        not isinstance(key_token, str)
+        or not key_token.startswith("KEY_")
+    ):
+            return "<UNK>"
+
+        body = key_token[4:]
+
+    # e.g. KEY_Ab
+        if "-" not in body:
+            return "<UNK>"
+
+        root, mode = body.split("-", 1)
+
+    # 3. Enharmonic equivalent
+        enharmonic_map = {
+        "Db": "C#",
+        "C#": "Db",
+
+        "Eb": "D#",
+        "D#": "Eb",
+
+        "Gb": "F#",
+        "F#": "Gb",
+
+        "Ab": "G#",
+        "G#": "Ab",
+
+        "Bb": "A#",
+        "A#": "Bb",
+
+        "B": "Cb",
+        "Cb": "B",
+
+        "E": "Fb",
+        "Fb": "E",
+    }
+
+        alt_root = enharmonic_map.get(root)
+
+        if alt_root is not None:
+
+            candidate = (
+            f"KEY_{alt_root}-{mode}"
+        )
+
+            if candidate in self.token_to_id:
+                return candidate
+
+    # 4. Final fallback
+        return "<UNK>"
+
     def match_tempo_token(self,tempo_token):
         if tempo_token in self.token_to_id:
             return tempo_token
@@ -1018,8 +1077,7 @@ class JazzGenerationDataset(Dataset):
         is_last
     ):
         
-        if key_token not in self.token_to_id:  
-            raise ValueError(f"Key token not in vocabulary: "f"{key_token}")
+        key_token = self._resolve_key_token(key_token)
 
 
         if tempo_token not in self.token_to_id:
