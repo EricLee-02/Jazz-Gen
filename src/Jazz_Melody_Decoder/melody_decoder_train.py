@@ -150,8 +150,8 @@ def validate():
     model.eval()
     total_loss=0
     for batch in val_loader:
-        x=batch["input_ids"].to(DEVICE,non_blocking = True)
-        y=batch["labels"].to(DEVICE, non_blocking = True)
+        x=batch["melody_input"].to(DEVICE,non_blocking = True)
+        y=batch["melody_target"].to(DEVICE, non_blocking = True)
         harmony = {k:v.to(DEVICE,non_blocking = True) for k,v in batch["harmony"].items()}
         with autocast("cuda"):
            memory = harmony_encoder.encode(
