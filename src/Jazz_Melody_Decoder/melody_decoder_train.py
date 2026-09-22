@@ -73,7 +73,7 @@ model = JazzTransformer(
 print("Model vocab size:", vocab_size)
 model.to(DEVICE)
 # Loss
-criterion = nn.CrossEntropyLoss(ignore_index=train_dataset.pad_id)
+criterion = nn.CrossEntropyLoss(ignore_index=-100)
 # Optimizer
 optimizer = torch.optim.AdamW(model.parameters(),lr=LR,weight_decay=WEIGHT_DECAY)
 
