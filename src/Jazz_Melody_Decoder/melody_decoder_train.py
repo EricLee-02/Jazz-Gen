@@ -127,13 +127,13 @@ def train_one_epoch(epoch):
         # logits:
         # [batch, seq, vocab]
            
-           print("logits shape:", logits.shape)
-           print("vocab_size variable:", vocab_size)
-           print("model output:", model.output.out_features)
+        #    print("logits shape:", logits.shape)
+        #    print("vocab_size variable:", vocab_size)
+        #    print("model output:", model.output.out_features)
 
-           print("vocab_size:", vocab_size)
-           print("target max:", y.max().item())
-           print("target min:", y.min().item())
+        #    print("vocab_size:", vocab_size)
+        #    print("target max:", y.max().item())
+        #    print("target min:", y.min().item())
            loss = criterion(logits.reshape(-1, vocab_size),y.reshape(-1))
 
         scaler.scale(loss).backward()
