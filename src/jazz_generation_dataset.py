@@ -421,7 +421,6 @@ class JazzGenerationDataset(Dataset):
         for chord in harmony_events:
             if chord is None:
                 continue
-            chord = self.features.normalize_chord_map(chord)
             try:
                 feature = (self.features.analyze_chord(chord))
             except Exception:
