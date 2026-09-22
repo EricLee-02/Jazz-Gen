@@ -111,7 +111,7 @@ def train_one_epoch(epoch):
     total_loss = 0
 
     for batch_idx, batch in enumerate(train_loader):
-        x = batch["melody_ids"].to(DEVICE,non_blocking = True)
+        x = batch["melody_input"].to(DEVICE,non_blocking = True)
         y = batch["melody_target"].to(DEVICE, non_blocking = True)
         harmony = {k:v.to(DEVICE,non_blocking = True) for k,v in batch["harmony"].items()}
 
