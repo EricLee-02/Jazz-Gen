@@ -121,15 +121,16 @@ def train_one_epoch(epoch):
             memory = harmony_encoder.encode(**harmony)
 
 
-        print("logits shape:", logits.shape)
-        print("vocab_size variable:", vocab_size)
-        print("model output:", model.output.out_features)
-
         with autocast("cuda"):
            logits = model(x,memory)
         # print( "input max:",x.max().item(),"input min:",x.min().item())
         # logits:
         # [batch, seq, vocab]
+           
+           print("logits shape:", logits.shape)
+           print("vocab_size variable:", vocab_size)
+           print("model output:", model.output.out_features)
+
            print("vocab_size:", vocab_size)
            print("target max:", y.max().item())
            print("target min:", y.min().item())
