@@ -162,6 +162,9 @@ def validate():
                )
            logits=model(x,memory)
            loss=criterion(logits.reshape(-1,vocab_size),y.reshape(-1))
+           print("vocab_size:", vocab_size)
+           print("target max:", y.max().item())
+           print("target min:", y.min().item())
         total_loss+=loss.item()
     return total_loss/len(val_loader)
 
