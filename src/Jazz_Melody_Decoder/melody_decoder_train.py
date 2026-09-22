@@ -120,6 +120,11 @@ def train_one_epoch(epoch):
         with torch.no_grad():
             memory = harmony_encoder.encode(**harmony)
 
+
+        print("logits shape:", logits.shape)
+        print("vocab_size variable:", vocab_size)
+        print("model output:", model.output.out_features)
+
         with autocast("cuda"):
            logits = model(x,memory)
         # print( "input max:",x.max().item(),"input min:",x.min().item())
