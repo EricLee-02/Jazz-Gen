@@ -3,7 +3,7 @@ os.environ["CUDA_LAUNCH_BLOCKING"]="1"
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from .build_jazz_dataset import JazzDataset
+from src.jazz_generation_dataset import JazzGenerationDataset
 from .melody_decoder_Transformer import JazzTransformer
 from src.Jazz_Theory_Encoder.harmony_model import HarmonyModel
 from torch.amp import autocast, GradScaler
@@ -26,8 +26,8 @@ print("Device:", DEVICE)
 os.makedirs(MELODY_CHECKPOINT_DIR,exist_ok=True)
 
 # Dataset
-train_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="train")
-val_dataset = JazzDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="val")
+train_dataset = JazzGenerationDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="train")
+val_dataset = JazzGenerationDataset(solo_dir=MELODY_TOKEN_DIR,vocab_file=MELODY_VOCAB_FILE,seq_length=MELODY_MAX_SEQ_LEN,stride=STRIDE,split="val")
 train_loader = DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True,pin_memory=True,drop_last=True,num_workers=2)
 val_loader = DataLoader(val_dataset,batch_size=BATCH_SIZE,shuffle=False,pin_memory=True,num_workers=2)
 print("Train samples:",len(train_dataset))

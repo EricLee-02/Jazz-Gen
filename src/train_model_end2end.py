@@ -34,6 +34,9 @@ from .config import (
     WEIGHT_DECAY,
     MIN_DELTA,
     SEED,
+
+    HARMONY_WEIGHT,
+    MELODY_WEIGHT
 )
 
 os.makedirs(GENERATION_CHECKPOINT_DIR, exist_ok=True)
@@ -201,22 +204,13 @@ optimizer = torch.optim.AdamW(
     weight_decay=WEIGHT_DECAY,
 )
 
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer,
-    T_max=EPOCHS,
-)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR( optimizer, T_max=EPOCHS,)
 
-criterion = nn.CrossEntropyLoss(ignore_index=-100)
+melody_criterion = nn.CrossEntropyLoss(ignore_index=-100)
+harmony_criterion = nn.CrossEntropyLoss(ignore_index=-100)
+scaler = torch.amp.GradScaler( "cuda", enabled=(DEVICE.type == "cuda"),)
 
-scaler = torch.amp.GradScaler(
-    "cuda",
-    enabled=(DEVICE.type == "cuda"),
-)
-
-trainable_params = (
-    list(harmony_model.parameters())
-    + list(melody_decoder.parameters())
-)
+trainable_params = ( list(harmony_model.parameters()) + list(melody_decoder.parameters()))
 
 # ==================================================
 # Train
@@ -225,78 +219,37 @@ trainable_params = (
 def train_epoch(epoch):
     harmony_model.train()
     melody_decoder.train()
-
     total_loss = 0.0
-
     optimizer.zero_grad(set_to_none=True)
-
     for step, batch in enumerate(train_loader):
+        harmony = { k: v.to(DEVICE, non_blocking=True)  for k, v in batch["harmony"].items() }
+        melody_input = batch["melody_input"].to( DEVICE, non_blocking=True, )
+        melody_target = batch["melody_target"].to( DEVICE,non_blocking=True,)
 
-        harmony = {
-            k: v.to(DEVICE, non_blocking=True)
-            for k, v in batch["harmony"].items()
-        }
-
-        melody_input = batch["melody_input"].to(
-            DEVICE,
-            non_blocking=True,
-        )
-
-        melody_target = batch["melody_target"].to(
-            DEVICE,
-            non_blocking=True,
-        )
-
-        with torch.autocast(
-            device_type=DEVICE.type,
-            dtype=torch.float16,
-            enabled=(DEVICE.type == "cuda"),
-        ):
+        with torch.autocast(device_type=DEVICE.type,dtype=torch.float16,enabled=(DEVICE.type == "cuda"), ):
             # No torch.no_grad(): gradients must flow
             # through Decoder and Harmony Encoder.
-            memory = harmony_model.encode(**harmony)
-
-            logits = melody_decoder(
-                melody_input,
-                memory,
-            )
-
-            loss = criterion(
-                logits.reshape(-1, logits.size(-1)),
-                melody_target.reshape(-1),
-            )
-
+            memory,harmony_logits = harmony_model.encode(**harmony)
+            melody_logits = melody_decoder( melody_input,memory)
+            melody_loss = melody_criterion(melody_logits.reshape(-1,melody_logits.size(-1)), melody_target.reshape(-1))
+            harmony_target = harmony["input_ids"]
+            harmony_target = harmony_target.masked_fill(harmony["attention_mask"] == 0, -100)
+            harmony_loss = harmony_criterion(harmony_logits.reshape(-1,harmony_logits.size(-1)),harmony_target.reshape(-1))
+            loss = MELODY_WEIGHT * melody_loss +HARMONY_WEIGHT * harmony_loss
             scaled_loss = loss / ACCUM_STEPS
-
         scaler.scale(scaled_loss).backward()
-
-        should_step = (
-            (step + 1) % ACCUM_STEPS == 0
-            or step + 1 == len(train_loader)
-        )
+        should_step = ((step + 1) % ACCUM_STEPS == 0 or step + 1 == len(train_loader))
 
         if should_step:
             scaler.unscale_(optimizer)
-
-            torch.nn.utils.clip_grad_norm_(
-                trainable_params,
-                max_norm=1.0,
-            )
-
+            torch.nn.utils.clip_grad_norm_( trainable_params,max_norm=1.0,)
             scaler.step(optimizer)
             scaler.update()
-
             optimizer.zero_grad(set_to_none=True)
-
         total_loss += loss.item()
 
         if step % 20 == 0:
-            gpu_mem = (
-                torch.cuda.memory_allocated() / 1024 ** 3
-                if DEVICE.type == "cuda"
-                else 0.0
-            )
-
+            gpu_mem = (torch.cuda.memory_allocated() / 1024 ** 3 if DEVICE.type == "cuda" else 0.0)
             print(
                 f"Epoch {epoch + 1} "
                 f"Step {step}/{len(train_loader)} "
@@ -305,7 +258,6 @@ def train_epoch(epoch):
                 f"M-LR {optimizer.param_groups[1]['lr']:.2e} "
                 f"GPU {gpu_mem:.2f}GB"
             )
-
     return total_loss / len(train_loader)
 
 # ==================================================
@@ -316,45 +268,21 @@ def train_epoch(epoch):
 def validate_epoch():
     harmony_model.eval()
     melody_decoder.eval()
-
     total_loss = 0.0
-
     for batch in val_loader:
+        harmony = {k: v.to(DEVICE, non_blocking=True) for k, v in batch["harmony"].items() }
+        melody_input = batch["melody_input"].to(DEVICE,non_blocking=True, )
+        melody_target = batch["melody_target"].to( DEVICE, non_blocking=True,)
 
-        harmony = {
-            k: v.to(DEVICE, non_blocking=True)
-            for k, v in batch["harmony"].items()
-        }
-
-        melody_input = batch["melody_input"].to(
-            DEVICE,
-            non_blocking=True,
-        )
-
-        melody_target = batch["melody_target"].to(
-            DEVICE,
-            non_blocking=True,
-        )
-
-        with torch.autocast(
-            device_type=DEVICE.type,
-            dtype=torch.float16,
-            enabled=(DEVICE.type == "cuda"),
-        ):
-            memory = harmony_model.encode(**harmony)
-
-            logits = melody_decoder(
-                melody_input,
-                memory,
-            )
-
-            loss = criterion(
-                logits.reshape(-1, logits.size(-1)),
-                melody_target.reshape(-1),
-            )
-
+        with torch.autocast( device_type=DEVICE.type,dtype=torch.float16, enabled=(DEVICE.type == "cuda"),):
+            memory,harmony_logits = harmony_model.encode(**harmony)
+            melody_logits = melody_decoder( melody_input, memory,)
+            melody_loss = melody_criterion(melody_logits.reshape(-1,melody_logits.size(-1)), melody_target.reshape(-1))
+            harmony_target = harmony["input_ids"]
+            harmony_target = harmony_target.masked_fill(harmony["attention_mask"] == 0, -100)
+            harmony_loss = harmony_criterion(harmony_logits.reshape(-1,harmony_logits.size(-1)),harmony_target.reshape(-1))
+            loss = MELODY_WEIGHT * melody_loss +HARMONY_WEIGHT * harmony_loss
         total_loss += loss.item()
-
     return total_loss / len(val_loader)
 
 # ==================================================
@@ -384,79 +312,32 @@ def build_checkpoint(epoch, train_loss, val_loss):
 def main():
     best_val_loss = float("inf")
     patience_counter = 0
-
     for epoch in range(EPOCHS):
-
-        print(
-            f"\n========== Epoch {epoch + 1}/{EPOCHS} =========="
-        )
-
+        print(f"\n========== Epoch {epoch + 1}/{EPOCHS} ==========" )
         train_loss = train_epoch(epoch)
         val_loss = validate_epoch()
-
         # Only once per epoch
         scheduler.step()
-
         print(f"\nEpoch {epoch + 1} finished")
         print(f"Train Loss: {train_loss:.4f}")
         print(f"Val Loss  : {val_loss:.4f}")
-        print(
-            f"Harmony LR: "
-            f"{optimizer.param_groups[0]['lr']:.8f}"
-        )
-        print(
-            f"Melody LR : "
-            f"{optimizer.param_groups[1]['lr']:.8f}"
-        )
-
-        checkpoint = build_checkpoint(
-            epoch,
-            train_loss,
-            val_loss,
-        )
-
-        torch.save(
-            checkpoint,
-            os.path.join(
-                GENERATION_CHECKPOINT_DIR,
-                "generation_last.pt",
-            ),
-        )
-
+        print( f"Harmony LR: " f"{optimizer.param_groups[0]['lr']:.8f}")
+        print( f"Melody LR : "f"{optimizer.param_groups[1]['lr']:.8f}")
+        checkpoint = build_checkpoint(epoch, train_loss, val_loss, )
+        torch.save(checkpoint, os.path.join(  GENERATION_CHECKPOINT_DIR, "generation_last.pt",),)
         if val_loss < best_val_loss - MIN_DELTA:
             best_val_loss = val_loss
             patience_counter = 0
-
-            torch.save(
-                checkpoint,
-                os.path.join(
-                    GENERATION_CHECKPOINT_DIR,
-                    "generation_best.pt",
-                ),
-            )
-
-            print(
-                f"Saved best model "
-                f"(Val Loss {val_loss:.4f})"
-            )
-
+            torch.save(  checkpoint, os.path.join(  GENERATION_CHECKPOINT_DIR,  "generation_best.pt", ), )
+            print( f"Saved best model " f"(Val Loss {val_loss:.4f})")
         else:
             patience_counter += 1
-
-            print(
-                f"No improvement: "
-                f"{patience_counter}/{PATIENCE}"
-            )
-
+            print( f"No improvement: " f"{patience_counter}/{PATIENCE}")
             if patience_counter >= PATIENCE:
                 print("\nEarly stopping triggered.")
-                print(
-                    f"Best Val Loss: "
-                    f"{best_val_loss:.4f}"
-                )
+                print(  f"Best Val Loss: " f"{best_val_loss:.4f}")
                 break
 
     print("\nTraining finished.")
-
 if __name__ == "__main__":
     main()

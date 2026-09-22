@@ -68,6 +68,7 @@ class HarmonyModel(nn.Module):
         )
 
 
+
     def encode(self,
                input_ids,
                scale_vector,
@@ -128,5 +129,5 @@ class HarmonyModel(nn.Module):
         # ==========================
         # Prediction
         # ==========================
-        # logits = self.prediction(x)
-        return memory
+        logits = self.prediction(x)
+        return memory, logits
