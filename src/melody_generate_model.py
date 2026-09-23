@@ -310,7 +310,7 @@ class SoloTokenConstraint:
             self.note_count+=1
             self.stage=0
 
-def audit_melody_tokens(self,tokens):
+def audit_melody_tokens(tokens):
     """Read note onsets independently of the sampling state machine."""
     current = {}
     onsets = []
@@ -341,7 +341,7 @@ def audit_melody_tokens(self,tokens):
             tatum = int(current["TATUM"])
             if(period < 1 or beat < 1 or beat > period or division < 1 or tatum < 1 or tatum > division ):
                 invalid_grid += 1
-            position = self.canonical_position(division,tatum)
+            position = SoloTokenConstraint.canonical_position(division,tatum)
             onsets.append((bar, beat, position))
             current = {}
     counts = Counter(onsets)
