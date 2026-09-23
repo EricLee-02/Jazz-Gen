@@ -18,6 +18,7 @@ from collections import Counter
 import torch
 import torch.nn as nn
 from fractions import Fraction
+from config import GRID_PER_BEAT
 
 """Keep complete note onsets strictly increasing in (bar, beat, tatum).
 
@@ -98,12 +99,40 @@ class SoloTokenConstraint:
                 except:
                     pass
         return result
+    
+
+    def canonical_position(division,tatum):
+        division = int(division)
+        tatum = int(tatum)
+        if division < 1:
+            raise ValueError(f"Invalid division: {division}")
+        if tatum < 1:
+            raise ValueError(f"Invalid tatum: {tatum}")
+        if tatum > division:
+            raise ValueError(f"TATUM_{tatum} > DIVISION_{division}")
+    # ----------------------------------------
+    # Original WJazzD position
+    # ---------------------------------------
+        raw_position = Fraction(tatum - 1,division)
+    # ----------------------------------------
+    # Map onto 24-grid
+    # ----------------------------------------
+        grid_index = round(raw_position*GRID_PER_BEAT)
+        grid_index = int(grid_index)
+    # Never allow position == 1 beat.
+    #
+    # The next beat itself should be represented
+    # by BEAT_n+1 / TATUM_1.
+    # ----------------------------------------
+        grid_index = max(0,min(GRID_PER_BEAT - 1,grid_index))
+        return Fraction(grid_index,GRID_PER_BEAT)
+
 
 
 
     def _position(self,division,tatum):
 
-        return Fraction(tatum-1, division)
+        return self.canonical_position(division,tatum)
 
 
 
@@ -280,7 +309,7 @@ class SoloTokenConstraint:
             self.note_count+=1
             self.stage=0
 
-def audit_melody_tokens(tokens):
+def audit_melody_tokens(self,tokens):
     """Read note onsets independently of the sampling state machine."""
     current = {}
     onsets = []
@@ -311,7 +340,7 @@ def audit_melody_tokens(tokens):
             tatum = int(current["TATUM"])
             if(period < 1 or beat < 1 or beat > period or division < 1 or tatum < 1 or tatum > division ):
                 invalid_grid += 1
-            position = Fraction(tatum-1, division)
+            position = self.canonical_position(division,tatum)
             onsets.append((bar, beat, position))
             current = {}
     counts = Counter(onsets)
