@@ -127,6 +127,17 @@ class SoloTokenConstraint:
     def _future(self,bar,beat,division,tatum):
         #First note
         if self.last_onset is None:
+            if beat < 1:
+                return False
+            if (self.beats_per_bar is not None
+                and beat > self.beats_per_bar):
+                return False
+            if division < 1:
+                return False
+            if tatum < 1:
+                return False
+            if tatum > division:
+                return False
             return True
         current = self._absolute_position(bar,beat,division,tatum)
         previous = self._last_absolute_position()
@@ -470,6 +481,20 @@ class JazzGenerationModel(nn.Module):
 
             if not allowed:
                 stop_reason="no_future_position"
+                #debug
+                print("=" * 60)
+                print("NO FUTURE POSITION")
+                print("field:",constraint.fields[constraint.stage ])
+                print("stage:", constraint.stage)
+                print("note_count:",constraint.note_count)
+                print("bar:",constraint.bar)
+                print( "period:",constraint.period)
+                print( "beat:",constraint.beat)
+                print( "division:", constraint.division)
+                print( "tatum:",constraint.tatum)
+                print("last_onset:", constraint.last_onset)
+                print("=" * 60)
+                stop_reason = "no_future_position"
                 break
 
         # =========================
