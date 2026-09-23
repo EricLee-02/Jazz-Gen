@@ -177,7 +177,7 @@ class SoloTokenConstraint:
         field=self.fields[self.stage]
         token=self.tokens[token_id]
         if field == "SECTION":
-            self.section = token.split("-",1)[1]
+            self.section = token.split("_",1)[1]
         if field in [
             "BAR",
             "PERIOD",
