@@ -18,7 +18,7 @@ from collections import Counter
 import torch
 import torch.nn as nn
 from fractions import Fraction
-from config import GRID_PER_BEAT
+from .config import GRID_PER_BEAT
 
 """Keep complete note onsets strictly increasing in (bar, beat, tatum).
 
