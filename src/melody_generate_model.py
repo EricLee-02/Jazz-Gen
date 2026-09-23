@@ -215,7 +215,7 @@ class SoloTokenConstraint:
         return self.groups[field]
     
     def _beat_has_feature(self,bar,beat):
-        for division in select.divisions.keys():
+        for division in self.divisions.keys():
             if division < 1:
                 continue
             for tatum in self.tatums.keys():
