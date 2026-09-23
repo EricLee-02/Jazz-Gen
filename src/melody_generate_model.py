@@ -371,7 +371,7 @@ class JazzGenerationModel(nn.Module):
                 and harmony_generator is not None
                 and next_token.startswith("BAR_")
                 ):
-                current_bar = int(next_token.split("_",1))[1]
+                current_bar = int(next_token.split("_",1)[1])
                 currrent_chord = harmony_generator.chord_for_bar(chords,current_bar)
                 note_chords.append(currrent_chord)
                 note_harmony = {k:v.to(generated.device) for k, v in note_harmony.items()}
