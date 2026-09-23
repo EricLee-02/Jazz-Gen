@@ -40,7 +40,7 @@ from mido import (
     Message,
     MetaMessage
 )
-from .melody_generate_model import SoloTokenConstraint
+from .melody_generate_model import canonical_position
 
 # ============================================================
 # MIDI settings
@@ -49,7 +49,7 @@ TICKS_PER_BEAT = 480
 DEFAULT_TEMPO = 120.0
 DEFAULT_PERIOD = 4
 
-solo_token_constraint = SoloTokenConstraint
+
 
 # ============================================================
 # Duration
@@ -393,7 +393,7 @@ def note_to_tick(note, bar_start_ticks):
     tatum = max(note.tatum,1)
     # Keep malformed tatum inside legal range
     tatum = min(tatum, division)
-    position = solo_token_constraint.canonical_position(note.division,note.tatum)
+    position = canonical_position(note.division,note.tatum)
     tick += round(float(position)*TICKS_PER_BEAT)
     # ----------------------------------------
     # MICRO timing
