@@ -37,9 +37,9 @@ class SoloTokenConstraint:
         start_bar=None,
         max_bar=None
     ):
-        self.min_onset_gap = Fraction(2,24)
+        self.min_onset_gap = Fraction(4,24)
         self.max_onset_gap = Fraction(2,1)
-        self.max_division = 8
+        self.max_division = 6
 
         self.vocab = dict(token_to_id)
         self.tokens = {i:t for t,i in self.vocab.items()}
