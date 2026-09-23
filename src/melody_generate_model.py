@@ -90,7 +90,7 @@ class SoloTokenConstraint:
         self.finished=False
 
     def _absolute_position(self,bar,beat,division,tatum):
-        return (Fraction(bar * self.beats_per_bar+beat-1,1)+select._position(division=division,tatum=tatum))
+        return (Fraction(bar * self.beats_per_bar+beat-1,1)+self._position(division=division,tatum=tatum))
     
     def _last_absolute_position(self):
         if self.last_onset is None:
