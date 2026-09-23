@@ -37,7 +37,7 @@ class SoloTokenConstraint:
         start_bar=None,
         max_bar=None
     ):
-        self.min_onset_gap = Fraction(4,24)
+        self.min_onset_gap = Fraction(2,24)
         self.max_onset_gap = Fraction(2,1)
         self.max_division = 8
 
@@ -89,8 +89,8 @@ class SoloTokenConstraint:
         self.note_count=0
         self.finished=False
 
-    def _absolute_position(select,bar,beat,division,tatum):
-        return (Fraction(bar * select.beats_per_bar+beat-1,1)+select._position(division=division,tatum=tatum))
+    def _absolute_position(self,bar,beat,division,tatum):
+        return (Fraction(bar * self.beats_per_bar+beat-1,1)+select._position(division=division,tatum=tatum))
     
     def _last_absolute_position(self):
         if self.last_onset is None:
@@ -170,15 +170,17 @@ class SoloTokenConstraint:
         
         if field == "BAR":
             if self.last_onset is None:
-                start = self.start_bar if self.start_bar is not None else min(self.bars.keys())
+                start = self.start_bar 
+                if start not in self.bars:
+                    raise ValueError(f"BAR_{start} not found in vocabulary")
                 return [self.bars[start]]
             last_bar = self.last_onset[0]
             ids = []
-            if self._same_bar_has_feature():
+            if self._bar_has_feature(last_bar):
                 if last_bar in self.bars:
                     ids.append(self.bars[last_bar])
             next_bar = last_bar +1
-            if (next_bar in self.bars and (self.max_bar is None or next_bar <= self.max_bar)):
+            if (next_bar in self.bars and (self.max_bar is None or next_bar <= self.max_bar) and self._bar_has_feature(next_bar)):
                 ids.append(self.bars[next_bar])
 
             return ids
@@ -208,24 +210,8 @@ class SoloTokenConstraint:
                 if (self.period is not None
                     and beat > self.period):
                     continue
-                has_future = False
-                for division in self.divisions.keys():
-                    if (division < 1 or division > self.max_division):
-                        continue
-                    for tatum in self.tatums.keys():
-                        if tatum <1:
-                            continue
-                        if tatum > division:
-                            continue
-
-                        if self._future(self.bar,beat=beat,division=division,tatum=tatum):
-                            has_future = True
-                        break
-                    if has_future:
-                        break
-                if has_future:
+                if self._beat_has_feature(self.bar,beat):
                     ids.append(idx)
-           
             return ids
         # =========================
         # DIVISION
@@ -271,42 +257,49 @@ class SoloTokenConstraint:
         return self.groups[field]
     
     def _beat_has_feature(self,bar,beat):
+        if beat < 1:
+           return False
+        if beat > self.beats_per_bar:
+           return False
         for division in self.divisions.keys():
             if division < 1:
                 continue
+            if division > self.max_division:
+                continue
             for tatum in self.tatums.keys():
                 if tatum < 1:
-                    continue
+                   continue
                 if tatum > division:
-                    continue
-                if self._future(bar,beat,division,tatum):
-                    return True
+                   continue
+                if self._future(bar=bar,beat=beat,division=division,tatum=tatum):
+                   return True
         return False
     
+    def _bar_has_feature(self,bar):
+        if (self.max_bar is not None
+            and bar > self.max_bar):
+            return False
+        for beat in self.beats.keys():
+            if beat < 1:
+                continue
+            if beat > self.beats_per_bar:
+                continue
+            if self._beat_has_feature(bar,beat):
+                return True
+        return False
 
     def _same_bar_has_feature(self):
         if self.last_onset is None:
             return True
         last_bar = self.last_onset[0]
-        if self.beats_per_bar is not None:
-            period = self.beats_per_bar
-        elif self.period is not None:
-            period = self.period
-        else:
-            return True
         for beat in self.beats.keys():
-            if beat < 1 or beat > period:
+            if beat < 1:
                 continue
-            for division in self.divisions.keys():
-                if division < 1:
-                    continue
-                for tatum in self.tatums.keys():
-                    if tatum < 1:
-                        continue
-                    if tatum > division:
-                        continue
-                    if self._future(last_bar,beat,division,tatum):
-                        return True
+            if beat>self.beats_per_bar:
+                continue
+            if self._beat_has_feature(last_bar,beat):
+                return True
+           
         return False
 
 
