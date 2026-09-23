@@ -39,7 +39,7 @@ class SoloTokenConstraint:
     ):
         self.min_onset_gap = Fraction(4,24)
         self.max_onset_gap = Fraction(2,1)
-        self.max_division = 0
+        self.max_division = 8
 
         self.vocab = dict(token_to_id)
         self.tokens = {i:t for t,i in self.vocab.items()}
@@ -212,10 +212,14 @@ class SoloTokenConstraint:
                 for division in self.divisions.keys():
                     if (division < 1 or division > self.max_division):
                         continue
-                    if tatum > division:
-                        continue
-                    if self._future(self.bar,beat=beat,division=division,tatum=tatum):
-                        has_future = True
+                    for tatum in self.tatums.keys():
+                        if tatum <1:
+                            continue
+                        if tatum > division:
+                            continue
+
+                        if self._future(self.bar,beat=beat,division=division,tatum=tatum):
+                            has_future = True
                         break
                     if has_future:
                         break
