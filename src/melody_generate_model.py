@@ -131,8 +131,9 @@ class SoloTokenConstraint:
 
 
     def _position(self,division,tatum):
+        position = self.canonical_position(division,tatum)
 
-        return self.canonical_position(division,tatum)
+        return position
 
 
 
