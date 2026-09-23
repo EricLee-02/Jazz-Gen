@@ -127,11 +127,36 @@ class SoloTokenConstraint:
                 and self.last_onset[0]>= self.max_bar):
                 ids.append(self.eos_id)
             return ids
+        
+        if field == "BAR":
+            ids = []
+            for bar , idx in self.bars.items():
+                if self.last_onset is None:
+                    if (self.start_bar is None
+                        or bar == self.start_bar):
+                        ids.append(idx)
+                    continue
+                last_bar = self.last_onset[0]
+                if bar < last_bar:
+                    continue
+                ids.append(idx)
+            return ids
         # =========================
         # PERIOD
         # =========================
         if field=="PERIOD":
-            return list(self.groups["PERIOD"])
+            ids = []
+            for period, idx in self.periods.items():
+                if period < 1:
+                    continue
+                if self.last_onset is not None:
+                    last_bar = self.last_onset[0]
+                    last_beat = self.last_onset[1]
+                    if self.bar == last_bar:
+                        if period < last_beat:
+                            continue
+                ids.append(idx)
+            return ids
         # =========================
         # BEAT
         # =========================
@@ -140,25 +165,61 @@ class SoloTokenConstraint:
             for beat,idx in self.beats.items():
                 if beat<1:
                     continue
-                if self.period:
-                    if beat>self.period:
-                        continue
+                if self.period is not None:
+                    last_bar = self.last_onset[0]
+                    last_beat = self.last_onset[1]
+                    if self.bar == last_bar:
+                        if beat < last_beat:
+                            continue
                 ids.append(idx)
             return ids
         # =========================
         # DIVISION
         # =========================
         if field=="DIVISION":
-            return list( self.groups["DIVISION"])
+            ids = []
+            for division, idx in self.division.items():
+                if division < 1:
+                    continue
+                if self.last_onset is None:
+                    ids.append(idx)
+                    continue
+                last_bar = self.last_onset[0]
+                last_beat = self.last_onset[1]
+                last_position = self.last_onset[2]
+                if self.bar > last_bar:
+                    ids.append(idx)
+                    continue
+                if self.bar == last_bar and self.beat>last_beat:
+                    ids.append(idx)
+                    continue
+                if self.bar == last_bar and self.beat == last_beat:
+                    has_future_tatum = False
+                    for tatum in self.tatum.keys():
+                        if tatum<1:
+                            continue
+                        if tatum > division:
+                            continue
+                        position = self._position(division,tatum)
+                        if position > last_position:
+                            has_future_tatum = True
+                            break
+                    if not has_future_tatum:
+                        continue
+                    ids.append(idx)
+            return ids
         # =========================
         # TATUM
         # =========================
         if field=="TATUM":
             ids=[]
             for tatum,idx in self.tatums.items():
-                if tatum<=self.division:
-                    if self._future(self.bar,self.beat,self.division,tatum):
-                        ids.append(idx)
+                if tatum < 1:
+                    continue
+                if tatum > self.division:
+                    continue
+                if self._future(self.bar,self.beat,self.division,tatum):
+                    ids.append(idx)
             return ids
         # =========================
         # Melody tokens
