@@ -10,20 +10,10 @@ from .midi_decoder import token_to_midi
 
 
 
-DEVICE=torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "cpu"
-)
-
-
+DEVICE=torch.device( "cuda" if torch.cuda.is_available() else "cpu")
 
 CHECKPOINT="/content/drive/MyDrive/JazzGen_Data/check_point/generation/generation_best.pt"
-
 VOCAB_FILE="/content/drive/MyDrive/JazzGen_Data/Melody_Vocabulary/vocabulary.json"
-
-
-
 # ======================
 # build model
 # ======================
@@ -40,16 +30,10 @@ harmony_encoder=HarmonyModel(
     num_layers=6
 )
 
-
-
 with open(VOCAB_FILE) as f:
     vocab=json.load(f)
 
-
-vocab_size=len(
-    vocab["token_to_id"]
-)
-
+vocab_size=len(vocab["token_to_id"])
 
 melody_decoder=JazzTransformer(
     vocab_size=vocab_size,
@@ -62,26 +46,13 @@ melody_decoder=JazzTransformer(
 
 
 
-model=JazzGenerationModel(
-    harmony_encoder,
-    melody_decoder
-)
+model=JazzGenerationModel(harmony_encoder,melody_decoder)
 
 
 
-checkpoint=torch.load(
-    CHECKPOINT,
-    map_location=DEVICE
-)
-
-
-model.load_state_dict(
-    checkpoint["model_state_dict"]
-)
-
-
+checkpoint=torch.load(CHECKPOINT,map_location=DEVICE)
+model.load_state_dict(checkpoint["model_state_dict"])
 model.to(DEVICE)
-
 print("Model loaded")
 
 
@@ -91,68 +62,27 @@ print("Model loaded")
 # ======================
 
 harmony={
-
 "input_ids":...,
-
 "scale_vector":...,
-
 "chord_tones_vector":...,
-
 "guide_vector":...,
-
 "tension_vector":...,
-
 "available_tension_vector":...,
-
 "avoid_vector":...,
-
 "attention_mask":...
-
 }
-
-
 
 # ======================
 # generate
 # ======================
 
-
 BOS=vocab["token_to_id"]["<BOS>"]
-
 EOS=vocab["token_to_id"]["<EOS>"]
-
-
-
-tokens=model.generate(
-    harmony,
-    BOS,
-    EOS,
-    max_length=512,
-    temperature=0.8,
-    top_k=20
-)
-
-
+tokens=model.generate(harmony,BOS,EOS,max_length=512, temperature=0.8,top_k=20)
 tokens=tokens[0].cpu().tolist()
-
-
-
 print(tokens[:50])
-
-
-
 # ======================
 # MIDI
 # ======================
-
-
-token_to_midi(
-    tokens,
-    vocab,
-    output="generated_jazz.mid"
-)
-
-
-print(
-"Saved generated_jazz.mid"
-)
+token_to_midi( tokens,vocab,output="generated_jazz.mid")
+print("Saved generated_jazz.mid")
