@@ -159,8 +159,8 @@ def main():
 
 
     melody_checkpoint = torch.load(MELODY_CHECKPOINT_FILE,map_location="cpu")
-    if "melody_state_dict" in melody_checkpoint:
-        melody_state = melody_checkpoint["melody_state_dict"]
+    if "model_state_dict" in melody_checkpoint:
+        melody_state = melody_checkpoint["model_state_dict"]
     elif "decoder" in melody_checkpoint:
         melody_state = melody_checkpoint["decoder"]
     else:
