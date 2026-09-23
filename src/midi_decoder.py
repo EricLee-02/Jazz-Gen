@@ -40,7 +40,7 @@ from mido import (
     Message,
     MetaMessage
 )
-from melody_generate_model import SoloTokenConstraint
+from .melody_generate_model import SoloTokenConstraint
 
 # ============================================================
 # MIDI settings
