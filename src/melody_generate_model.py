@@ -101,7 +101,7 @@ class SoloTokenConstraint:
         return result
     
 
-    def canonical_position(division,tatum):
+    def canonical_position(self,division,tatum):
         division = int(division)
         tatum = int(tatum)
         if division < 1:
