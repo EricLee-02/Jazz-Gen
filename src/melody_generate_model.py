@@ -374,6 +374,7 @@ class JazzGenerationModel(nn.Module):
                 current_bar = int(next_token.split("_",1)[1])
                 currrent_chord = harmony_generator.chord_for_bar(chords,current_bar)
                 note_chords.append(currrent_chord)
+                note_harmony = harmony_generator.build_note_aligned(note_chords)
                 note_harmony = {k:v.to(generated.device) for k, v in note_harmony.items()}
                 memory = self.harmony_encoder.encode(**note_harmony)
             if constraint.finished:
