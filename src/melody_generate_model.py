@@ -353,7 +353,7 @@ class JazzGenerationModel(nn.Module):
                 probs=torch.softmax(scores,dim=-1)
                 choice=torch.multinomial(probs,1,generator=rng )
                 next_id=candidate_ids[choice].item()
-            next_token = constraint.tokens(next_id)
+            next_token = constraint.tokens[next_id]
             constraint.advance(next_id)
             generated=torch.cat([generated, generated.new_tensor([[next_id]] )],dim=1)
 # ==========================================
