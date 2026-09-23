@@ -341,7 +341,7 @@ def audit_melody_tokens(tokens):
             tatum = int(current["TATUM"])
             if(period < 1 or beat < 1 or beat > period or division < 1 or tatum < 1 or tatum > division ):
                 invalid_grid += 1
-            position = SoloTokenConstraint.canonical_position(division,tatum)
+            position = SoloTokenConstraint.canonical_position(division=division,tatum=tatum)
             onsets.append((bar, beat, position))
             current = {}
     counts = Counter(onsets)
