@@ -178,7 +178,7 @@ class SoloTokenConstraint:
         # =========================
         if field=="DIVISION":
             ids = []
-            for division, idx in self.division.items():
+            for division, idx in self.divisions.items():
                 if division < 1:
                     continue
                 if self.last_onset is None:
