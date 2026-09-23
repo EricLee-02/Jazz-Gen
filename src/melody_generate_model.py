@@ -165,7 +165,7 @@ class SoloTokenConstraint:
             for beat,idx in self.beats.items():
                 if beat<1:
                     continue
-                if self.period is not None:
+                if self.last_onset is not None:
                     last_bar = self.last_onset[0]
                     last_beat = self.last_onset[1]
                     if self.bar == last_bar:
