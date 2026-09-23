@@ -37,6 +37,9 @@ class SoloTokenConstraint:
         start_bar=None,
         max_bar=None
     ):
+        self.min_onset_gap = Fraction(4,24)
+        self.max_onset_gap = Fraction(2,1)
+        self.max_division = 0
 
         self.vocab = dict(token_to_id)
         self.tokens = {i:t for t,i in self.vocab.items()}
@@ -86,6 +89,15 @@ class SoloTokenConstraint:
         self.note_count=0
         self.finished=False
 
+    def _absolute_position(select,bar,beat,division,tatum):
+        return (Fraction(bar * select.beats_per_bar+beat-1,1)+select._position(division=division,tatum=tatum))
+    
+    def _last_absolute_position(self):
+        if self.last_onset is None:
+            return None
+        bar,beat,position = self.last_onset
+        return (Fraction(bar * self.beats_per_bar + beat-1,1)+position)
+
 
 
 
@@ -113,9 +125,21 @@ class SoloTokenConstraint:
 
 
     def _future(self,bar,beat,division,tatum):
+        #First note
         if self.last_onset is None:
             return True
-        return (bar,beat,self._position(division,tatum)) > self.last_onset
+        current = self._absolute_position(bar,beat,division,tatum)
+        previous = self._last_absolute_position()
+        gap = current - previous
+
+        if gap <= 0 :
+            return False
+        if gap <self.min_onset_gap:
+            return False
+        if gap > self.max_onset_gap:
+            return False
+        return True
+        # return (bar,beat,self._position(division,tatum)) > self.last_onset
 
 
 
@@ -173,9 +197,19 @@ class SoloTokenConstraint:
                 if (self.period is not None
                     and beat > self.period):
                     continue
-                if not self._beat_has_feature(self.bar,beat):
-                    continue
-                ids.append(idx)
+                has_future = False
+                for division in self.divisions.keys():
+                    if (division < 1 or division > self.max_division):
+                        continue
+                    if tatum > division:
+                        continue
+                    if self._future(self.bar,beat=beat,division=division,tatum=tatum):
+                        has_future = True
+                        break
+                    if has_future:
+                        break
+                if has_future:
+                    ids.append(idx)
            
             return ids
         # =========================
@@ -185,6 +219,8 @@ class SoloTokenConstraint:
             ids = []
             for division, idx in self.divisions.items():
                 if division < 1:
+                    continue
+                if division > self.max_division:
                     continue
                 has_future = False
                 for tatum in self.tatums.keys():
