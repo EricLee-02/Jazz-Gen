@@ -43,8 +43,8 @@ from .config import (
 TEMPERATURE = 0.95
 TOP_K = 50
 SEED = None
-BEATS_PER_BAR = None
-START_BAR = None
+BEATS_PER_BAR = 4
+START_BAR = 0
 
 
 
