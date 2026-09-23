@@ -195,7 +195,7 @@ class SoloTokenConstraint:
                     continue
                 if self.bar == last_bar and self.beat == last_beat:
                     has_future_tatum = False
-                    for tatum in self.tatum.keys():
+                    for tatum in self.tatums.keys():
                         if tatum<1:
                             continue
                         if tatum > division:
