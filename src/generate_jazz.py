@@ -196,7 +196,6 @@ def main():
         "CMaj7""CMin7 F7","BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7","CMaj7","DMin7 G7",
     ]
 
-    chords = chords * 2
     prompt=build_prompt(token_to_id,key,tempo)
     harmony_generator=HarmonyGenerator(
         max_harmony_len = 512,
