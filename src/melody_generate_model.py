@@ -1089,12 +1089,12 @@ class JazzGenerationModel(nn.Module):
         # DURATION field, so pitch/rhythm/section sampling is unchanged.
         if duration_bias is None:
             duration_bias = {
-                "DURATION_2": -0.25,
-                "DURATION_4": 0.05,
-                "DURATION_8": 0.20,
-                "DURATION_16": 0,
-                "DURATION_32": -0.15,
-                "DURATION_LONG": -1.00,
+                "DURATION_2": 0.10,
+                "DURATION_4": 0.20,
+                "DURATION_8": 0.70,
+                "DURATION_16": -0.30,
+                "DURATION_32": -0.60,
+                "DURATION_LONG": -0.20,
             }
 
         rng=None
