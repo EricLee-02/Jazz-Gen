@@ -72,6 +72,8 @@ def build_prompt(token_to_id,key,tempo):
 # ===============================
 
 def get_max_length(bars):
+    if bars == 16:
+        return 64*16
     if bars == 32:
         return GENERATE_32_BAR_LENGTH
     if bars == 48:
@@ -187,7 +189,7 @@ def main():
     # Condition
     # ===============================
 
-    bars=32
+    bars=16
     key="C-maj"
     tempo=120.1
     chords=[
