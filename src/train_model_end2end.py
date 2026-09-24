@@ -408,7 +408,7 @@ train_dataset = JazzGenerationDataset(
     solo_dir=MELODY_TOKEN_DIR,
     vocab_file=MELODY_VOCAB_FILE,
     seq_length=MELODY_MAX_SEQ_LEN,
-    max_harmony_len=128,
+    max_harmony_len=512,
     stride=256,
     split="train",
     train_ratio=TRAIN_RATIO,
@@ -418,7 +418,7 @@ val_dataset = JazzGenerationDataset(
     solo_dir=MELODY_TOKEN_DIR,
     vocab_file=MELODY_VOCAB_FILE,
     seq_length=MELODY_MAX_SEQ_LEN,
-    max_harmony_len=128,
+    max_harmony_len=512,
     stride=256,
     split="val",
     train_ratio=TRAIN_RATIO,
@@ -1534,97 +1534,25 @@ def main():
             f"{val_loss:.4f}"
         )
 
-        print(
-            "Harmony LR:",
-            f"{optimizer.param_groups[0]['lr']:.8f}"
-        )
+        print("Harmony LR:", f"{optimizer.param_groups[0]['lr']:.8f}")
 
-        print(
-            "Melody LR :",
-            f"{optimizer.param_groups[1]['lr']:.8f}"
-        )
+        print( "Melody LR :", f"{optimizer.param_groups[1]['lr']:.8f}")
+        checkpoint = (build_checkpoint( epoch, train_loss, val_loss, ))
 
 
-        checkpoint = (
-            build_checkpoint(
-                epoch,
-                train_loss,
-                val_loss,
-            )
-        )
-
-
-        torch.save(
-            checkpoint,
-
-            os.path.join(
-                GENERATION_CHECKPOINT_DIR,
-                "generation_last.pt",
-            ),
-        )
-
-
-        if (
-            val_loss
-            <
-            best_val_loss
-            -
-            MIN_DELTA
-        ):
-
-            best_val_loss = (
-                val_loss
-            )
-
+        torch.save(checkpoint, os.path.join( GENERATION_CHECKPOINT_DIR, "generation_last.pt", ), )
+        if (val_loss < best_val_loss - MIN_DELTA):
+            best_val_loss = ( val_loss)
             patience_counter = 0
-
-
-            torch.save(
-                checkpoint,
-
-                os.path.join(
-                    GENERATION_CHECKPOINT_DIR,
-                    "generation_best.pt",
-                ),
-            )
-
-
-            print(
-                f"Saved best model "
-                f"(Val Loss "
-                f"{val_loss:.4f})"
-            )
-
-
+            torch.save(checkpoint, os.path.join( GENERATION_CHECKPOINT_DIR, "generation_best.pt",),)
+            print(f"Saved best model ( Val Loss {val_loss:.4f} )")
         else:
-
             patience_counter += 1
-
-
-            print(
-                "No improvement: "
-                f"{patience_counter}"
-                f"/"
-                f"{PATIENCE}"
-            )
-
-
-            if (
-                patience_counter
-                >=
-                PATIENCE
-            ):
-
-                print(
-                    "\nEarly stopping "
-                    "triggered."
-                )
-
-                print(
-                    "Best Val Loss:",
-                    f"{best_val_loss:.4f}")
+            print( "No improvement: "f"{patience_counter} {PATIENCE}")
+            if (patience_counter>=PATIENCE):
+                print( "\nEarly stopping triggered.")
+                print("Best Val Loss:", f"{best_val_loss:.4f}")
                 break
-
     print( "\nTraining finished." )
 
 
