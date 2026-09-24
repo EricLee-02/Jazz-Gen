@@ -188,25 +188,12 @@ def main():
     # ===============================
 
     bars=32
-    key="Bb-maj"
+    key="C-maj"
     tempo=120.1
     chords=[
-        "CMin7",
-        "F7",
-        "BbMaj7",
-        # "EbMaj7",
-        # "AMin7b5",
-        # "D7",
-        # "GMin7",
-        # "C7",
-        # "FMin7",
-        # "Bb7",
-        # "EbMaj7",
-        # "A7",
-        # "DMin7",
-        # "G7",
-        # "CMaj7",
-        # "CMaj7",
+        "CMaj7""CMin7 F7","BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7","CMaj7","CMaj7",
+        "DMin7","G7","C/EMaj7","A7","DMin7", "G7", "CMaj7","DMin7 G7",
+        "CMaj7""CMin7 F7","BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7","CMaj7","DMin7 G7",
     ]
 
     chords = chords * 2
