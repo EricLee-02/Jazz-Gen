@@ -146,7 +146,7 @@ class JazzGenerationDataset(Dataset):
             # -------------------------
             for start in range(0,len(tokens),self.stride):
                 segment = tokens[start:start + self.seq_length]
-                harmony_events = self.extract_note_aligned_chords(segment)
+                harmony_events = self.extract_note_aligned_chords(full_tokens=tokens,start=start,segment=segment)
                 if len(segment) <= 50:
                     continue
 
@@ -360,10 +360,14 @@ class JazzGenerationDataset(Dataset):
     # Extract Harmony for Current Segment
     # ==================================================
 
-    def extract_note_aligned_chords(self,segment):
+    def extract_note_aligned_chords(self,full_tokens,start,segment):
         aligned = []
         current_chord = None
         inside_note =False
+        for token in full_tokens[:start]:
+            if token.startswith("CHORD_"):
+                chord = token.replace("CHORD_","",1)
+                current_chord = self.normalize_chord(chord=chord)
         # ==================================
         # Chord changes inside segment
         # ==================================
@@ -372,30 +376,27 @@ class JazzGenerationDataset(Dataset):
             if token.startswith("CHORD_" ):
                 chord = token.replace("CHORD_","", 1)
                 current_chord = (self.normalize_chord(chord))
-            if token.startswith("BAR_"):
+            elif token.startswith("BAR_"):
                 inside_note = True
-            if token.startswith("PITCH_") and inside_note:
-                if current_chord:
+            elif token.startswith("PITCH_") and inside_note:
+                if current_chord is not None:
                     aligned.append(current_chord)
-                    inside_note = False
+                inside_note = False
         return aligned
     def split_note_events(self, note_tokens):
         events = []
         current = []
         for token in note_tokens:
             if token.startswith("SECTION_"):
-                current.append(token)
-            elif token.startswith("BAR_"):
-                if current and self.is_complete_note(current):
+                if current is not None and self.is_complete_note(current):
                     events.append(current)
-                current = [token]
-            else:
-                if current:
-                    current.append(token)
-    # final note
-        if current:
-            if self.is_complete_note(current):
-                events.append(current)
+                current=[token]
+            if current is None:
+                continue
+            if token.startswith(self.note_prefixes):
+                current.append(token)
+        if current is not None and self.is_complete_note(current):
+            events.append(current)
         return events
         
 
@@ -601,7 +602,8 @@ class JazzGenerationDataset(Dataset):
         return {
         "input_ids": torch.tensor( input_ids,dtype=torch.long),
         "target_ids":torch.tensor(target_ids, dtype=torch.long ),
-        "attention_mask": torch.tensor( attention_mask, dtype=torch.bool )
+        "attention_mask": torch.tensor( attention_mask, dtype=torch.bool ),
+        "included_notes":included_notes
           }
 
 
@@ -611,14 +613,6 @@ class JazzGenerationDataset(Dataset):
 
     def __getitem__(self,index):
         sample = self.samples[index]
-        # ==================================
-        # Harmony
-        # ==================================
-        harmony = (self.build_harmony(sample["harmony_events"]))
-        # ==================================
-        # Melody
-        # ==================================
-
         melody = (
             self.build_melody(
                 note_tokens= sample["melody_tokens"],
@@ -626,6 +620,17 @@ class JazzGenerationDataset(Dataset):
                 tempo_token=sample["tempo_token"],
                 is_last=sample[ "is_last" ],
                 ) )
+        included_notes = melody["included_notes"]
+        harmony_events =(sample["harmony_events"][:included_notes])
+        # ==================================
+        # Harmony
+        # ==================================
+        harmony = (self.build_harmony(harmony_events))
+        # ==================================
+        # Melody
+        # ==================================
+
+
 
         return {
             "harmony": harmony,
