@@ -1479,67 +1479,26 @@ def build_checkpoint(
 # ==================================================
 
 def main():
-
     preflight_check()
-
-
-    best_val_loss = (
-        float(
-            "inf"
-        )
-    )
-
+    best_val_loss = (float("inf"))
     patience_counter = 0
 
-
-    for epoch in range(
-        EPOCHS
-    ):
-
+    for epoch in range(EPOCHS):
         print(
-            f"\n========== "
+            f"\n========== " 
             f"Epoch {epoch + 1}/{EPOCHS} "
             f"=========="
         )
-
-
-        train_loss = (
-            train_epoch(
-                epoch
-            )
-        )
-
-
-        val_loss = (
-            validate_epoch()
-        )
-
+        train_loss = (train_epoch(epoch))
+        val_loss = (validate_epoch())
 
         scheduler.step()
-
-
-        print(
-            f"\nEpoch "
-            f"{epoch + 1} "
-            f"finished"
-        )
-
-        print(
-            f"Train Loss: "
-            f"{train_loss:.4f}"
-        )
-
-        print(
-            f"Val Loss  : "
-            f"{val_loss:.4f}"
-        )
-
+        print(f"\nEpoch {epoch + 1} finished")
+        print(f"Train Loss: "f"{train_loss:.4f}")
+        print( f"Val Loss  : "f"{val_loss:.4f}")
         print("Harmony LR:", f"{optimizer.param_groups[0]['lr']:.8f}")
-
         print( "Melody LR :", f"{optimizer.param_groups[1]['lr']:.8f}")
         checkpoint = (build_checkpoint( epoch, train_loss, val_loss, ))
-
-
         torch.save(checkpoint, os.path.join( GENERATION_CHECKPOINT_DIR, "generation_last.pt", ), )
         if (val_loss < best_val_loss - MIN_DELTA):
             best_val_loss = ( val_loss)

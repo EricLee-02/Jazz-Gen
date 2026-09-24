@@ -274,9 +274,8 @@ class JazzGenerationDataset(Dataset):
         for token in tokens:
             # Every note begins with BAR
             if token.startswith("SECTION_"):
-                if current_note is not None:
-                    if self.is_complete_note(current_note):
-                        complete_tokens.extend(current_note)
+                if (current_note is not None and self.is_complete_note(current_note)):
+                    complete_tokens.extend(current_note)
                 current_note = [token]
                 continue 
 
@@ -299,10 +298,17 @@ class JazzGenerationDataset(Dataset):
 
     def is_complete_note( self, note_tokens ):
         for prefix in (self.required_note_prefixes ):
-            if not any( token.startswith(prefix) for token in note_tokens):
+            count = sum(token.startswith(prefix) for token in note_tokens)
+            if count != 1:
                 return False
+        required_tokens = [token for token in note_tokens if token.startswith(tuple(self.required_note_prefixes))]
+        if len(required_tokens) != len (self.required_note_prefixes):
+            return False
+        for token, prefix in zip(required_tokens,self.required_note_prefixes):
+            if not token.startswith(prefix):
+                return False
+        
         return True
-
     # ==================================================
     # Chord Normalize
     # ==================================================
@@ -377,12 +383,13 @@ class JazzGenerationDataset(Dataset):
         return aligned
     def split_note_events(self, note_tokens):
         events = []
-        current = []
+        current = None
         for token in note_tokens:
             if token.startswith("SECTION_"):
                 if current is not None and self.is_complete_note(current):
                     events.append(current)
                 current=[token]
+                continue
             if current is None:
                 continue
             if token.startswith(self.note_prefixes):
