@@ -43,8 +43,8 @@ class JazzGenerationDataset(Dataset):
         )
 
         self.optional_note_prefixes = (
-            "ARTIC_",
-            "MICRO_",
+            # "ARTIC_",
+            # "MICRO_",
         )
         self.note_prefixes = (self.required_note_prefixes+ self.optional_note_prefixes)
 

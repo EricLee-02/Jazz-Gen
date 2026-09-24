@@ -127,9 +127,9 @@ class JazzTokenizer:
         tokens.append(f"PITCH_{int(note['pitch'])}")
         tokens.append(self.duration_token(note.get("duration",0.25)))
         tokens.append(self.velocity_token(note.get("velocity",80)))
-        if "articulation" in note:tokens.append( f"ARTIC_{note['articulation']}")
-        if "micro_timing" in note:
-            tokens.append( self.micro_token(note["micro_timing"]))
+        # if "articulation" in note:tokens.append( f"ARTIC_{note['articulation']}")
+        # if "micro_timing" in note:
+            # tokens.append( self.micro_token(note["micro_timing"]))
         return tokens
 
 
