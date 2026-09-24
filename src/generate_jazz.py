@@ -493,25 +493,11 @@ def main():
     #
     # This 16-bar form is repeated only to keep this example exactly 32 bars.
     # Replace the second 16 bars if your real form is different.
-    form_16 = [
-        "CMaj7",
-        "CMin7 F7",
-        "BbMaj7",
-        "BbMin7 Eb7",
-        "AbMaj7",
-        "DMin7 G7",
-        "CMaj7",
-        "CMaj7",
-        "DMin7",
-        "G7",
-        "C/EMaj7",
-        "A7",
-        "DMin7",
-        "G7",
-        "CMaj7",
-        "DMin7 G7",
+    chords = [
+        "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7",
+        "DMin7","G7","C/EMaj7", "A7","DMin7","G7","CMaj7","DMin7 G7",
+        "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7"
     ]
-    chords = form_16 + form_16
 
     if len(chords) != bars:
         raise ValueError(
