@@ -356,24 +356,20 @@ def micro_offset_ticks(micro):
 # Time conversion
 # ============================================================
 
-def note_to_tick(note, bar_start_ticks):
+def note_to_tick(note, bar_start_ticks,swing = False, swing_ratio = 0.625):
 
     """
-    Correct JazzGen timing:
+    Convert symbolic onset into MIDI tick.
 
-    absolute tick
-        =
-    start of BAR
-        +
-    (BEAT - 1) * ticks_per_beat
-        +
-    ((TATUM - 1) / DIVISION) * ticks_per_beat
+    Straight eighth:
+        DIVISION_2 / TATUM_2 = 0.5 beat
 
-    IMPORTANT:
+    Swing rendering:
+        DIVISION_2 / TATUM_2 = swing_ratio beat
 
-    DIVISION does NOT itself advance time.
-
-    It defines how finely the current beat is divided.
+    Existing triplet positions such as
+        DIVISION_3 / TATUM_3
+    are preserved.
     """
 
     # ----------------------------------------
@@ -393,8 +389,27 @@ def note_to_tick(note, bar_start_ticks):
     tatum = max(note.tatum,1)
     # Keep malformed tatum inside legal range
     tatum = min(tatum, division)
-    position = canonical_position(note.division,note.tatum)
-    tick += round(float(position)*TICKS_PER_BEAT)
+    position = canonical_position(division,tatum)
+      # ========================================
+    # Swing rendering
+    # ========================================
+    #
+    # Only move a straight eighth offbeat:
+    #
+    # DIVISION_2
+    # TATUM_2
+    #
+    # straight:
+    #     0.500 beat
+    #
+    # swing_ratio=0.625:
+    #     0.625 beat
+    #
+    # DIVISION_3 positions are untouched.
+    # ========================================
+    if swing and division == 2 and tatum == 2:
+        position = swing_ratio
+    tick += round(float(position) * TICKS_PER_BEAT)
     # ----------------------------------------
     # MICRO timing
     # ----------------------------------------
@@ -422,7 +437,7 @@ def apply_articulation(ticks,articulation):
 # MIDI export
 # ============================================================
 
-def tokens_to_midi(tokens,tempo_bpm=None):
+def tokens_to_midi(tokens,tempo_bpm=None,swing=True,swing_ratio=0.625,swing_rate=0.92):
     notes = parse_notes(tokens)
     if tempo_bpm is None:
         tempo_bpm = extract_tempo(tokens)
@@ -430,6 +445,9 @@ def tokens_to_midi(tokens,tempo_bpm=None):
         tempo_bpm = DEFAULT_TEMPO
     print("MIDI notes:",len(notes))
     print("MIDI tempo:",tempo_bpm)
+    print("Swing:",swing)
+    print("Swing ratio:", swing_ratio)
+    print("Swing gate:", swing_rate)
     # ========================================================
     # MIDI
     # ========================================================
@@ -462,39 +480,41 @@ def tokens_to_midi(tokens,tempo_bpm=None):
     # Absolute positions
     # ========================================================
     bar_start_ticks = build_bar_start_ticks(notes)
+    starts = [note_to_tick(note=note, bar_start_ticks=bar_start_ticks,swing=swing,swing_ratio=swing_ratio) for note in notes]
     events = []
-    for note in notes:
-        start = note_to_tick(note,bar_start_ticks)
+    for i , note in enumerate(notes):
+        start = starts[i]
         duration = duration_to_ticks(note.duration)
         duration = apply_articulation(duration,note.articulation)
-        end = ( start+duration)
-
-        # event priority:
-        #
-        # note_off = 0
-        # note_on  = 1
-        #
-        # therefore off comes first
-        # when timestamps are identical.
-
-        events.append((start, 1, "on",note))
-        events.append(( end,0,"off", note))
-    # ========================================================
-    # Sort MIDI events
-    # ========================================================
-    events.sort(key=lambda x: (x[0], x[1], x[3].pitch ))
-
-    # ========================================================
-    # Convert absolute ticks -> MIDI delta ticks
-    # ========================================================
+        if swing and note.duration =="8" and i + 1<len(notes):
+            next_note = notes[i + 1]
+            next_start = starts[i+1]
+            first_of_swing_pair =(note.division == 2 
+                                  and note.tatum == 1 
+                                  and next_note.bar == note.bar
+                                  and next_note.beat == note.beat
+                                  and next_note.division == 2
+                                  and next_note.tatum == 2)
+            
+            second_of_swing_pair = (note.division == 2
+                                    and note.tatum == 2)
+            if (first_of_swing_pair or second_of_swing_pair):
+                available = next_start - start
+                if available > 0:
+                    swing_duration = round(available * swing_rate)
+                    swing_duration = max(swing_duration,1)
+                    duration = swing_duration
+        end = start+duration
+        events.append((start,1,"on",note))
+        events.append((end,0,"off",note))
+    events.sort(key = lambda x:(x[0],x[1],x[3].pitch))
     last_tick = 0
-    for (tick, _,event,note) in events:
+    for tick,_,event,note in events:
         tick = max(int(tick),last_tick)
-        delta = ( tick-last_tick)
+        delta = tick - last_tick
         last_tick = tick
         if event == "on":
-            track.append( Message( "note_on",note=max(0,min(note.pitch,127)),velocity=max(1,min(note.velocity, 127)), time=delta))
-
+            track.append(Message("note_on",note = max(0,min(note.pitch,127)),velocity = max(1,min(note.velocity,127)),time =delta))
         else:
-            track.append(Message("note_off", note=max( 0,min( note.pitch,127 ) ),velocity=0,time=delta))
+            track.append(Message("note_off",note=max(0,min(note.pitch,127)),velocity=0,time=delta))
     return midi

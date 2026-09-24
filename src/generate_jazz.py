@@ -45,6 +45,8 @@ TOP_K = 50
 SEED = None
 BEATS_PER_BAR = 4
 START_BAR = 0
+SWING = True
+SWING_RATIO = 0.625
 
 
 
@@ -267,7 +269,7 @@ def main():
     print("Generation report:")
     print(json.dumps( info, ensure_ascii=False))
 
-    midi=tokens_to_midi(tokens,tempo_bpm=tempo)
+    midi=tokens_to_midi(tokens,tempo_bpm=tempo,swing = SWING, swing_ratio = SWING_RATIO)
     midi.save(midi_output)
     print( "Saved MIDI:",midi_output)
 
