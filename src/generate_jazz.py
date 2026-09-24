@@ -116,7 +116,7 @@ def main():
 
     melody_decoder=JazzTransformer(
         vocab_size=len(token_to_id),
-        max_seq_len=4096,
+        max_seq_len=2048,
         d_model=MELODY_D_MODEL,
         num_heads=MELODY_HEADS,
         num_layers=MELODY_LAYERS,
