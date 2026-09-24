@@ -189,7 +189,7 @@ def main():
     # Condition
     # ===============================
 
-    bars=16
+    bars=32
     key="C-maj"
     tempo=120.1
     chords=[
