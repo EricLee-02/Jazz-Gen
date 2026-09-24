@@ -158,14 +158,7 @@ class JazzGenerationDataset(Dataset):
                     skipped_no_notes += 1
                     continue
 
-                # ==================================
-                # Harmony aligned to this chunk
-                # ==================================
 
-                chords = self.extract_note_aligned_chords(segment=segment )
-                if not chords:
-                    skipped_no_chords += 1
-                    continue
 
                 # Only a chunk containing the real
                 # end of the song should learn EOS
@@ -173,7 +166,6 @@ class JazzGenerationDataset(Dataset):
                 self.samples.append({
                     "melody_tokens":melody_tokens,
                     "harmony_events": harmony_events,
-                    "chords":chords,
                     "key_token": key_token,
                     "tempo_token":tempo_token,
                     "is_last":is_last,

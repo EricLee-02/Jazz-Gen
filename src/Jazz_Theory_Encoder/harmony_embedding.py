@@ -5,7 +5,6 @@ import torch.nn as nn
 
 class HarmonyEmbedding(nn.Module):
 
-
     def __init__(
         self,
         vocab_sizes,
