@@ -426,52 +426,70 @@ def main():
     # Load checkpoints
     # ===============================
 
-    harmony_checkpoint = torch.load(
-        HARMONY_CHECKPOINT_FILE,
-        map_location="cpu",
-    )
-    harmony_state = harmony_checkpoint["encoder"]
-    harmony_result = harmony_encoder.load_state_dict(
-        harmony_state,
-        strict=False,
-    )
+    # harmony_checkpoint = torch.load(
+    #     HARMONY_CHECKPOINT_FILE,
+    #     map_location="cpu",
+    # )
+    # harmony_state = harmony_checkpoint["encoder"]
+    # harmony_result = harmony_encoder.load_state_dict(
+    #     harmony_state,
+    #     strict=False,
+    # )
 
-    print("=" * 50)
-    print("Harmony Encoder Loaded")
-    print("Missing:", harmony_result.missing_keys)
-    print("Unexpected:", harmony_result.unexpected_keys)
+    # print("=" * 50)
+    # print("Harmony Encoder Loaded")
+    # print("Missing:", harmony_result.missing_keys)
+    # print("Unexpected:", harmony_result.unexpected_keys)
 
-    melody_checkpoint = torch.load(
-        MELODY_CHECKPOINT_FILE,
-        map_location="cpu",
-    )
+    # melody_checkpoint = torch.load(
+    #     MELODY_CHECKPOINT_FILE,
+    #     map_location="cpu",
+    # )
 
-    if "model_state_dict" in melody_checkpoint:
-        melody_state = melody_checkpoint["model_state_dict"]
-    elif "decoder" in melody_checkpoint:
-        melody_state = melody_checkpoint["decoder"]
-    else:
-        melody_state = melody_checkpoint
+    # if "model_state_dict" in melody_checkpoint:
+    #     melody_state = melody_checkpoint["model_state_dict"]
+    # elif "decoder" in melody_checkpoint:
+    #     melody_state = melody_checkpoint["decoder"]
+    # else:
+    #     melody_state = melody_checkpoint
 
-    melody_result = melody_decoder.load_state_dict(
-        melody_state,
-        strict=True,
-    )
+    # melody_result = melody_decoder.load_state_dict(
+    #     melody_state,
+    #     strict=True,
+    # )
 
-    print("=" * 50)
-    print("Melody Decoder Loaded")
-    print("Missing:", melody_result.missing_keys)
-    print("Unexpected:", melody_result.unexpected_keys)
+    # print("=" * 50)
+    # print("Melody Decoder Loaded")
+    # print("Missing:", melody_result.missing_keys)
+    # print("Unexpected:", melody_result.unexpected_keys)
 
-    if isinstance(melody_checkpoint, dict):
-        if "epoch" in melody_checkpoint:
-            print("Epoch:", melody_checkpoint["epoch"])
-        if "loss" in melody_checkpoint:
-            print("Val loss:", melody_checkpoint["loss"])
+    # if isinstance(melody_checkpoint, dict):
+    #     if "epoch" in melody_checkpoint:
+    #         print("Epoch:", melody_checkpoint["epoch"])
+    #     if "loss" in melody_checkpoint:
+    #         print("Val loss:", melody_checkpoint["loss"])
 
-    print("=" * 50)
+    # print("=" * 50)
 
-    model = model.to(device)
+    # model = model.to(device)
+    # model.eval()
+
+    #     ===============================
+    # Load End-to-End checkpoint
+    # ===============================
+
+    checkpoint=torch.load( GENERATION_CHECKPOINT_FILE, map_location="cpu")
+    harmony_result = harmony_encoder.load_state_dict( checkpoint["harmony_state_dict"], strict=True)
+
+    melody_result = melody_decoder.load_state_dict(checkpoint["melody_state_dict"], strict=True)
+
+
+    print("===============================")
+    print("Generation model loaded")
+    print( "Epoch:", checkpoint["epoch"] )
+    print( "Val Loss:",checkpoint["val_loss"])
+    print("===============================")
+    model=model.to(device)
     model.eval()
 
     # ===============================
