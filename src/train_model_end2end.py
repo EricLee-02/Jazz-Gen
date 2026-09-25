@@ -514,16 +514,12 @@ if (
 # Unfreeze Harmony Encoder
 # ==================================================
 
-for param in (
-    harmony_model.parameters()
-):
+for param in (harmony_model.parameters()):
 
     param.requires_grad = True
 
 
-harmony_model.to(
-    DEVICE
-)
+harmony_model.to(DEVICE)
 
 
 # ==================================================
@@ -1381,96 +1377,30 @@ def validate_epoch():
 # ==================================================
 
 def combined_model_state_dict():
-
     state = {}
+    for key, value in (harmony_model.state_dict().items()):
+        state[f"harmony_encoder.{key}"] = value
 
-
-    for key, value in (
-        harmony_model
-        .state_dict()
-        .items()
-    ):
-
-        state[
-            f"harmony_encoder.{key}"
-        ] = value
-
-
-    for key, value in (
-        melody_decoder
-        .state_dict()
-        .items()
-    ):
-
-        state[
-            f"melody_decoder.{key}"
-        ] = value
-
-
+    for key, value in (melody_decoder.state_dict().items()):
+        state[f"melody_decoder.{key}"] = value
     return state
-
-
-def build_checkpoint(
-    epoch,
-    train_loss,
-    val_loss
-):
-
+def build_checkpoint(epoch,train_loss,val_loss):
     return {
-
-        "epoch":
-            epoch,
-
-        "train_loss":
-            train_loss,
-
-        "val_loss":
-            val_loss,
-
-
+        "epoch":epoch,
+        "train_loss":train_loss,
+        "val_loss":val_loss,
         # Individual models
-        "harmony_state_dict":
-            harmony_model.state_dict(),
-
-        "melody_state_dict":
-            melody_decoder.state_dict(),
-
-
+        "harmony_state_dict":harmony_model.state_dict(),
+        "melody_state_dict":melody_decoder.state_dict(),
         # Combined model
-        "model_state_dict":
-            combined_model_state_dict(),
-
-
-        "optimizer_state_dict":
-            optimizer.state_dict(),
-
-        "scheduler_state_dict":
-            scheduler.state_dict(),
-
-        "scaler_state_dict":
-            scaler.state_dict(),
-
-
-        "vocab_size":
-            vocab_size,
-
-        "token_to_id":
-            token_to_id,
-
-
-        "harmony_lr":
-            optimizer.param_groups[
-                0
-            ][
-                "lr"
-            ],
-
-        "melody_lr":
-            optimizer.param_groups[
-                1
-            ][
-                "lr"
-            ],
+        "model_state_dict":combined_model_state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "scheduler_state_dict":scheduler.state_dict(),
+        "scaler_state_dict":scaler.state_dict(),
+        "vocab_size": vocab_size,
+        "token_to_id":token_to_id,
+        "harmony_lr": optimizer.param_groups[0]["lr"],
+        "melody_lr":optimizer.param_groups[1]["lr"],
     }
 
 
