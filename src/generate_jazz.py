@@ -531,9 +531,12 @@ def main():
     #     "CMin7 F7","BbMin7 Eb7","AMaj7","BbMin7 Eb7",
     # ] 
 
-    bars = 32
+    bars = 48
     key = "Bb-maj"
     chords = [
+        "Bb7","Eb7","Bb7","Bb7",
+        "Eb7","Eb7","Bb7","Bb7",
+        "CMin7","F7","Bb7","Bb7",
         "Bb7","Eb7","Bb7","Bb7",
         "Eb7","Eb7","Bb7","Bb7",
         "CMin7","F7","Bb7","Bb7",
