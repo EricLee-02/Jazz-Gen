@@ -547,6 +547,7 @@ def main():
         "Eb7","Eb7","Bb7","Bb7",
         "CMin7","F7","Bb7","Bb7"
         ]
+    tempo = 141.6
 
     if len(chords) != bars:
         raise ValueError(
