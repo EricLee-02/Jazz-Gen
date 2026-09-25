@@ -496,9 +496,9 @@ def main():
     # Condition
     # ===============================
 
-    bars = 32
-    key = "C-maj"
-    tempo = 120.1
+    # bars = 32
+    # key = "C-maj"
+    # tempo = 120.1
 
     # IMPORTANT:
     # one STRING == one BAR.
@@ -511,12 +511,25 @@ def main():
     #
     # This 16-bar form is repeated only to keep this example exactly 32 bars.
     # Replace the second 16 bars if your real form is different.
+    # chords = [
+    #     "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","DMin7 G7",
+    #     "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7",
+    #     "DMin7","G7","C/EMaj7", "A7","DMin7","G7","CMaj7","DMin7 G7",
+    #     "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7"
+    # ]
+    bars = 32
+    key = "Ab-maj"
+    tempo = 240
     chords = [
-        "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","DMin7 G7",
-        "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7",
-        "DMin7","G7","C/EMaj7", "A7","DMin7","G7","CMaj7","DMin7 G7",
-        "CMaj7","CMin7 F7", "BbMaj7","BbMin7 Eb7","AbMaj7","DMin7 G7", "CMaj7","CMaj7"
-    ]
+        "AbMaj7","F7","Bb7","Bb7",
+        "BbMin7","Eb7","AbMaj7","EbMin7 Ab7",
+        "DbMaj7","Gb7","AbMaj7","F7",
+        "Bb7","Bb7","BbMin-7","Eb7",
+        "AbMaj7","F7","Bb7","Bb7",
+        "Gø7","C7b9","FMin","C7b9",
+        "FMin","C7b9","FMin","BDim7",
+        "CMin7 F7","BbMin7 Eb7","AMaj7","BbMin7 Eb7",
+    ] 
 
     if len(chords) != bars:
         raise ValueError(
